@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Project;
 use App\Models\ProjectCategory;
+use App\Models\ProjectTask;
 use App\Models\ProjectThreat;
 use App\Models\Staff;
 use App\Models\User;
@@ -67,7 +68,7 @@ class ProjectController extends Controller
         $project = Project::create([
             'client_id' => $client->id,
             'project_category_id' => $validated['project_category_id'] ?? null,
-            'created_by' => $validated['created_by'] ?? null,
+            'created_by' => $validated['created_by'] ?? auth()->id(),
             'name' => $validated['name'],
             'service_type' => $validated['service_type'],
             'status' => $validated['status'],
@@ -91,6 +92,7 @@ class ProjectController extends Controller
             'category',
             'staff',
             'tasks.assignee',
+            'tasks.threats',
             'progressUpdates.user',
             'progressUpdates.task',
             'threats.user',
@@ -133,7 +135,7 @@ class ProjectController extends Controller
 
         $project->update([
             'project_category_id' => $validated['project_category_id'] ?? null,
-            'created_by' => $validated['created_by'] ?? null,
+            'created_by' => $validated['created_by'] ?? $project->created_by,
             'name' => $validated['name'],
             'service_type' => $validated['service_type'],
             'status' => $validated['status'],
@@ -152,6 +154,10 @@ class ProjectController extends Controller
 
     public function destroy(Project $project): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('delete projects') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang berwenang menghapus project.');
+        }
+
         $project->delete();
 
         return redirect()
@@ -175,5 +181,30 @@ class ProjectController extends Controller
         return redirect()
             ->route('projects.show', $project)
             ->with('status', 'Task added.');
+    }
+
+    public function updateTaskStatus(Request $request, Project $project, ProjectTask $task): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:not_started,in_progress,waiting_client,completed'],
+        ]);
+
+        $status = $validated['status'];
+        $progress = $task->progress_percent;
+
+        if ($status === 'completed') {
+            $progress = 100;
+        } elseif ($progress >= 100 && $status !== 'completed') {
+            $progress = 50;
+        }
+
+        $task->update([
+            'status' => $status,
+            'progress_percent' => $progress,
+        ]);
+
+        return redirect()
+            ->route('projects.show', $project)
+            ->with('status', 'Status task berhasil diperbarui.');
     }
 }

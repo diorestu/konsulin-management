@@ -18,6 +18,10 @@ class WebsiteContentController extends Controller
 
     public function update(Request $request, WebsiteContent $websiteContent): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('manage website-content') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang diizinkan mengubah konten website.');
+        }
+
         $validated = $request->validate([
             'title' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string', 'max:10000'],

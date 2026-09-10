@@ -14,83 +14,66 @@
         <div class="stat"><strong>{{ $assignedStaffCount }}</strong><span class="muted">Assigned staff</span></div>
     </section>
 
-    <section class="panel" data-animate-children>
-        <div class="datatable-toolbar">
-            <label>Live search
-                <input id="staffSearch" type="search" placeholder="Search staff...">
-            </label>
-            <label>Rows per page
-                <select id="staffRowsPerPage">
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                </select>
-            </label>
-            <details class="column-filter">
-                <summary>View columns</summary>
-                <div class="column-filter-menu">
-                    @foreach (['name' => 'Name', 'type' => 'Type', 'email' => 'Email', 'phone' => 'Phone', 'position' => 'Position', 'projects' => 'Projects', 'status' => 'Status', 'actions' => 'Actions'] as $column => $label)
-                        <label><input type="checkbox" data-column-toggle="{{ $column }}" checked> {{ $label }}</label>
-                    @endforeach
-                </div>
-            </details>
-        </div>
-
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th data-column="name"><button class="sortable" type="button" data-sort="name">Name</button></th>
-                        <th data-column="type"><button class="sortable" type="button" data-sort="type">Type</button></th>
-                        <th data-column="email"><button class="sortable" type="button" data-sort="email">Email</button></th>
-                        <th data-column="phone">Phone</th>
-                        <th data-column="position">Position</th>
-                        <th data-column="projects"><button class="sortable" type="button" data-sort="projects">Projects</button></th>
-                        <th data-column="status"><button class="sortable" type="button" data-sort="status">Status</button></th>
-                        <th data-column="actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($staff as $employee)
-                        <tr data-row data-name="{{ $employee->name }}" data-type="{{ $employee->type }}" data-email="{{ $employee->email }}" data-projects="{{ $employee->projects_count }}" data-status="{{ $employee->is_active ? 'active' : 'inactive' }}">
-                            <td data-column="name"><strong>{{ $employee->name }}</strong></td>
-                            <td data-column="type"><span class="label">{{ $employee->type }}</span></td>
-                            <td data-column="email">{{ $employee->email ?? '-' }}</td>
-                            <td data-column="phone">{{ $employee->phone ?? '-' }}</td>
-                            <td data-column="position">{{ $employee->position ?? '-' }}</td>
-                            <td data-column="projects">{{ $employee->projects_count }}</td>
-                            <td data-column="status"><span class="label {{ $employee->is_active ? '' : 'warning' }}">{{ $employee->is_active ? 'active' : 'inactive' }}</span></td>
-                            <td data-column="actions">
-                                <div class="actions">
-                                    <button class="button secondary small icon-only" type="button" aria-label="Edit staff" title="Edit staff" data-open-staff-modal="edit" data-action="{{ route('staff.update', $employee) }}" data-name="{{ $employee->name }}" data-email="{{ $employee->email }}" data-phone="{{ $employee->phone }}" data-type="{{ $employee->type }}" data-position="{{ $employee->position }}" data-is-active="{{ $employee->is_active ? '1' : '0' }}">
-                                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-                                    </button>
-                                    <form method="POST" action="{{ route('staff.destroy', $employee) }}" onsubmit="return confirm('Delete staff {{ $employee->name }}?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="button danger small icon-only" type="submit" aria-label="Delete staff" title="Delete staff">
-                                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="muted">No staff yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="pagination-bar">
-            <span class="muted" id="staffPaginationInfo">Showing 0 staff</span>
-            <div class="actions">
-                <button class="button secondary small" type="button" id="staffPrevPage">Previous</button>
-                <button class="button secondary small" type="button" id="staffNextPage">Next</button>
-            </div>
-        </div>
-    </section>
+    <x-datatable
+        id="staff"
+        :columns="[
+            'name' => ['label' => 'Name', 'sortable' => true],
+            'type' => ['label' => 'Type', 'sortable' => true, 'info' => 'Role spesialisasi'],
+            'email' => ['label' => 'Email', 'sortable' => true],
+            'phone' => ['label' => 'Phone', 'sortable' => false],
+            'position' => ['label' => 'Position', 'sortable' => false],
+            'projects' => ['label' => 'Projects', 'sortable' => true],
+            'status' => ['label' => 'Status', 'sortable' => true, 'sorted' => true, 'direction' => 'desc'],
+            'actions' => ['label' => 'Actions', 'sortable' => false, 'align' => 'right'],
+        ]"
+        searchPlaceholder="Search staff..."
+    >
+        @forelse ($staff as $employee)
+            <tr
+                data-row
+                data-name="{{ $employee->name }}"
+                data-type="{{ $employee->type }}"
+                data-email="{{ $employee->email }}"
+                data-projects="{{ $employee->projects_count }}"
+                data-status="{{ $employee->is_active ? 'active' : 'inactive' }}"
+                class="hover:bg-slate-50/80 transition-colors"
+            >
+                <td data-column="name" class="py-3.5 px-4 font-semibold text-slate-900">
+                    <strong>{{ $employee->name }}</strong>
+                </td>
+                <td data-column="type" class="py-3.5 px-4">
+                    <span class="label text-[11px]">{{ $employee->type }}</span>
+                </td>
+                <td data-column="email" class="py-3.5 px-4 text-slate-600">{{ $employee->email ?? '-' }}</td>
+                <td data-column="phone" class="py-3.5 px-4 text-slate-600">{{ $employee->phone ?? '-' }}</td>
+                <td data-column="position" class="py-3.5 px-4 text-slate-600 font-medium">{{ $employee->position ?? '-' }}</td>
+                <td data-column="projects" class="py-3.5 px-4 font-semibold text-slate-800">{{ $employee->projects_count }}</td>
+                <td data-column="status" class="py-3.5 px-4">
+                    <x-datatable.status :type="$employee->is_active ? 'active' : 'inactive'" :label="$employee->is_active ? 'active' : 'inactive'" />
+                </td>
+                <td data-column="actions" class="py-3.5 px-4 text-right">
+                    <div class="actions justify-end">
+                        <button class="button secondary small icon-only" type="button" aria-label="Edit staff" title="Edit staff" data-open-staff-modal="edit" data-action="{{ route('staff.update', $employee) }}" data-name="{{ $employee->name }}" data-email="{{ $employee->email }}" data-phone="{{ $employee->phone }}" data-type="{{ $employee->type }}" data-position="{{ $employee->position }}" data-is-active="{{ $employee->is_active ? '1' : '0' }}">
+                            <x-heroicon-o-pencil-square class="w-4 h-4" />
+                        </button>
+                        @if (!auth()->check() || auth()->user()->isBoss() || auth()->user()->can('manage staff'))
+                            <form method="POST" action="{{ route('staff.destroy', $employee) }}" onsubmit="return confirm('Delete staff {{ $employee->name }}?');">
+                                @csrf
+                                @method('DELETE')
+                                <button class="button danger small icon-only" type="submit" aria-label="Delete staff" title="Delete staff">
+                                    <x-heroicon-o-trash class="w-4 h-4" />
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                </td>
+            </tr>
+        @empty
+            <tr data-empty-row>
+                <td colspan="8" class="muted py-8 text-center text-xs">No staff yet.</td>
+            </tr>
+        @endforelse
+    </x-datatable>
 
     <dialog id="staffModal">
         <div class="modal-head">

@@ -11,7 +11,7 @@
 </head>
 <body>
     <main class="public-site">
-        <nav class="public-nav"><strong>KONSULIN.ID</strong><div><a href="#services">Layanan</a><a href="#contact">Kontak</a><a class="button" href="{{ $contents['hero']->button_url ?? '#contact' }}">{{ $contents['hero']->button_text ?? 'Mulai Konsultasi' }}</a></div></nav>
+        <nav class="public-nav"><strong>KONSULIN.ID</strong><div><a href="#services">Layanan</a><a href="#contact">Kontak</a>@auth <a href="{{ route('dashboard') }}" class="button">Dashboard</a> @else <a href="{{ route('login') }}" style="font-weight: 600; color: #1e3e62;">Masuk Workspace</a> <a class="button" href="{{ $contents['hero']->button_url ?? '#contact' }}">{{ $contents['hero']->button_text ?? 'Mulai Konsultasi' }}</a> @endauth</div></nav>
         <section class="public-hero">
             <p class="eyebrow">Tax · Accounting · Advisory</p>
             <h1>{{ $contents['hero']->title ?? 'Konsultasi yang membuat bisnis lebih siap.' }}</h1>

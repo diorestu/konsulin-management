@@ -12,6 +12,7 @@ class StaffManagementTest extends TestCase
 
     public function test_staff_index_has_stats_datatable_and_modal_controls(): void
     {
+        $this->authenticateAsBoss();
         Staff::create([
             'name' => 'Nadia Tax',
             'email' => 'nadia@konsulin.test',
@@ -34,6 +35,7 @@ class StaffManagementTest extends TestCase
 
     public function test_staff_can_be_created_updated_and_deleted(): void
     {
+        $this->authenticateAsBoss();
         $this->post(route('staff.store'), [
             'name' => 'Ari Accounting',
             'email' => 'ari@konsulin.test',

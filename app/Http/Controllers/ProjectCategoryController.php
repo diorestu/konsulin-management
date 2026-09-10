@@ -24,6 +24,10 @@ class ProjectCategoryController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('manage categories') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang diizinkan menambah kategori.');
+        }
+
         ProjectCategory::create($this->validated($request));
 
         return redirect()
@@ -33,6 +37,10 @@ class ProjectCategoryController extends Controller
 
     public function update(Request $request, ProjectCategory $projectCategory): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('manage categories') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang diizinkan mengubah kategori.');
+        }
+
         $projectCategory->update($this->validated($request, $projectCategory));
 
         return redirect()
@@ -42,6 +50,10 @@ class ProjectCategoryController extends Controller
 
     public function destroy(ProjectCategory $projectCategory): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('manage categories') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang diizinkan menghapus kategori.');
+        }
+
         $projectCategory->delete();
 
         return redirect()

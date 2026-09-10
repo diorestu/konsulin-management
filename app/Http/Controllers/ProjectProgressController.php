@@ -12,11 +12,16 @@ class ProjectProgressController extends Controller
     {
         $validated = $request->validate([
             'project_task_id' => ['nullable', 'exists:project_tasks,id'],
-            'user_id' => ['required', 'exists:users,id'],
+            'user_id' => ['nullable', 'exists:users,id'],
             'progress_percent' => ['required', 'integer', 'min:0', 'max:100'],
             'summary' => ['required', 'string'],
             'attachment_path' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // Security: auto-assign authenticated user unless boss overrides
+        $validated['user_id'] = (auth()->check() && (!auth()->user()->isBoss() || empty($validated['user_id'])))
+            ? auth()->id()
+            : ($validated['user_id'] ?? auth()->id());
 
         $update = $project->progressUpdates()->create($validated);
 

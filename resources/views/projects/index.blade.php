@@ -26,140 +26,125 @@
         </div>
     </section>
 
-    <section class="panel" data-animate-children>
-        <div class="datatable-toolbar">
-            <label>Live search
-                <input id="projectSearch" type="search" placeholder="Search client, project, service, status...">
-            </label>
-            <label>Rows per page
-                <select id="projectRowsPerPage">
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                </select>
-            </label>
-            <details class="column-filter">
-                <summary>View columns</summary>
-                <div class="column-filter-menu">
-                    @foreach (['client' => 'Client', 'project' => 'Project', 'category' => 'Category', 'staff' => 'Staff', 'service' => 'Service', 'status' => 'Status', 'priority' => 'Priority', 'progress' => 'Progress', 'due' => 'Due', 'actions' => 'Actions'] as $column => $label)
-                        <label>
-                            <input type="checkbox" data-column-toggle="{{ $column }}" checked>
-                            {{ $label }}
-                        </label>
-                    @endforeach
-                </div>
-            </details>
-        </div>
-
-        <div class="table-wrap">
-            <table id="projectsTable">
-                <thead>
-                    <tr>
-                        <th data-column="client"><button class="sortable" type="button" data-sort="client">Client</button></th>
-                        <th data-column="project"><button class="sortable" type="button" data-sort="project">Project</button></th>
-                        <th data-column="category"><button class="sortable" type="button" data-sort="category">Category</button></th>
-                        <th data-column="staff"><button class="sortable" type="button" data-sort="staff">Staff</button></th>
-                        <th data-column="service"><button class="sortable" type="button" data-sort="service">Service</button></th>
-                        <th data-column="status"><button class="sortable" type="button" data-sort="status">Status</button></th>
-                        <th data-column="priority"><button class="sortable" type="button" data-sort="priority">Priority</button></th>
-                        <th data-column="progress"><button class="sortable" type="button" data-sort="progress">Progress</button></th>
-                        <th data-column="due"><button class="sortable" type="button" data-sort="due">Due</button></th>
-                        <th data-column="actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($projects as $project)
-                        <tr
-                            data-row
-                            data-client="{{ $project->client->name }}"
-                            data-project="{{ $project->name }}"
-                            data-category="{{ $project->category?->name }}"
-                            data-staff="{{ $project->staff->pluck('name')->join(' ') }}"
-                            data-service="{{ $project->service_type }}"
+    <x-datatable
+        id="project"
+        :columns="[
+            'client' => ['label' => 'Client', 'sortable' => true],
+            'project' => ['label' => 'Project', 'sortable' => true],
+            'category' => ['label' => 'Category', 'sortable' => true, 'info' => 'Kategori layanan'],
+            'staff' => ['label' => 'Staff', 'sortable' => true],
+            'service' => ['label' => 'Service', 'sortable' => true],
+            'status' => ['label' => 'Status', 'sortable' => true, 'sorted' => true, 'direction' => 'desc'],
+            'priority' => ['label' => 'Priority', 'sortable' => true],
+            'trend' => ['label' => 'Trend', 'sortable' => false],
+            'progress' => ['label' => 'Progress', 'sortable' => true],
+            'due' => ['label' => 'Due', 'sortable' => true],
+            'actions' => ['label' => 'Actions', 'sortable' => false, 'align' => 'right'],
+        ]"
+        searchPlaceholder="Search client, project, service, status..."
+    >
+        @forelse ($projects as $project)
+            <tr
+                data-row
+                data-client="{{ $project->client->name }}"
+                data-project="{{ $project->name }}"
+                data-category="{{ $project->category?->name }}"
+                data-staff="{{ $project->staff->pluck('name')->join(' ') }}"
+                data-service="{{ $project->service_type }}"
+                data-status="{{ $project->status }}"
+                data-priority="{{ $project->priority }}"
+                data-progress="{{ $project->progressPercent() }}"
+                data-due="{{ $project->due_date?->format('Y-m-d') ?? '' }}"
+                class="hover:bg-slate-50/80 transition-colors"
+            >
+                <td data-column="client" class="py-3.5 px-4 font-semibold text-slate-900">
+                    {{ $project->client->name }}
+                </td>
+                <td data-column="project" class="py-3.5 px-4">
+                    <a href="{{ route('projects.show', $project) }}" class="font-semibold text-slate-900 hover:text-[#1e3e62]">
+                        <strong>{{ $project->name }}</strong>
+                    </a>
+                    <div class="muted text-xs mt-0.5">{{ $project->tasks->count() }} tasks · {{ $project->threats->where('status', 'open')->count() }} open threats</div>
+                    @if ($project->tasks->isNotEmpty())
+                        <div class="muted text-xs">Latest task: {{ $project->tasks->first()->title }}</div>
+                    @endif
+                </td>
+                <td data-column="category" class="py-3.5 px-4 text-slate-600">{{ $project->category?->name ?? '-' }}</td>
+                <td data-column="staff" class="py-3.5 px-4">
+                    @forelse ($project->staff as $assignedStaff)
+                        <span class="label text-[11px]">{{ $assignedStaff->name }} · {{ $assignedStaff->type }}</span>
+                    @empty
+                        <span class="muted text-xs">Unassigned</span>
+                    @endforelse
+                </td>
+                <td data-column="service" class="py-3.5 px-4 text-slate-700 font-medium">{{ $project->service_type }}</td>
+                <td data-column="status" class="py-3.5 px-4">
+                    <x-datatable.status :type="$project->status" />
+                </td>
+                <td data-column="priority" class="py-3.5 px-4">
+                    <span class="label {{ in_array($project->priority, ['high', 'urgent'], true) ? 'warning' : '' }} text-xs">
+                        {{ $project->priority }}
+                    </span>
+                </td>
+                <td data-column="trend" class="py-3.5 px-4">
+                    <x-datatable.sparkline :trend="$project->progressPercent() >= 50 ? 'peak' : ($project->progressPercent() > 0 ? 'up' : 'flat')" />
+                </td>
+                <td data-column="progress" class="py-3.5 px-4">
+                    <div class="progress" aria-label="Project progress" style="margin: 0 0 4px; width: 80px;">
+                        <span style="width: {{ $project->progressPercent() }}%"></span>
+                    </div>
+                    <strong class="text-xs text-slate-800">{{ $project->progressPercent() }}%</strong>
+                </td>
+                <td data-column="due" class="py-3.5 px-4 text-xs text-slate-600 whitespace-nowrap">{{ $project->due_date?->format('d M Y') ?? '-' }}</td>
+                <td data-column="actions" class="py-3.5 px-4 text-right">
+                    <div class="actions justify-end">
+                        <a class="button secondary small icon-only" href="{{ route('projects.show', $project) }}" aria-label="View project" title="View Jira Board">
+                            <x-heroicon-o-squares-2x2 class="w-4 h-4" />
+                        </a>
+                        <button
+                            class="button secondary small icon-only"
+                            type="button"
+                            aria-label="Edit project"
+                            title="Edit project"
+                            data-open-project-modal="edit"
+                            data-action="{{ route('projects.update', $project) }}"
+                            data-client-name="{{ $project->client->name }}"
+                            data-client-email="{{ $project->client->email }}"
+                            data-client-phone="{{ $project->client->phone }}"
+                            data-client-tax-id="{{ $project->client->tax_id }}"
+                            data-project-category-id="{{ $project->project_category_id }}"
+                            data-staff-ids="{{ $project->staff->pluck('id')->join(',') }}"
+                            data-name="{{ $project->name }}"
+                            data-service-type="{{ $project->service_type }}"
                             data-status="{{ $project->status }}"
                             data-priority="{{ $project->priority }}"
-                            data-progress="{{ $project->progressPercent() }}"
-                            data-due="{{ $project->due_date?->format('Y-m-d') ?? '' }}"
+                            data-start-date="{{ $project->start_date?->format('Y-m-d') }}"
+                            data-due-date="{{ $project->due_date?->format('Y-m-d') }}"
+                            data-created-by="{{ $project->created_by }}"
+                            data-description="{{ $project->description }}"
                         >
-                            <td data-column="client">{{ $project->client->name }}</td>
-                            <td data-column="project">
-                                <a href="{{ route('projects.show', $project) }}"><strong>{{ $project->name }}</strong></a>
-                                <div class="muted">{{ $project->tasks->count() }} tasks · {{ $project->threats->where('status', 'open')->count() }} open threats</div>
-                                @if ($project->tasks->isNotEmpty())
-                                    <div class="muted">Latest task: {{ $project->tasks->first()->title }}</div>
-                                @endif
-                            </td>
-                            <td data-column="category">{{ $project->category?->name ?? '-' }}</td>
-                            <td data-column="staff">
-                                @forelse ($project->staff as $assignedStaff)
-                                    <span class="label">{{ $assignedStaff->name }} · {{ $assignedStaff->type }}</span>
-                                @empty
-                                    <span class="muted">Unassigned</span>
-                                @endforelse
-                            </td>
-                            <td data-column="service">{{ $project->service_type }}</td>
-                            <td data-column="status"><span class="label">{{ str_replace('_', ' ', $project->status) }}</span></td>
-                            <td data-column="priority"><span class="label {{ in_array($project->priority, ['high', 'urgent'], true) ? 'warning' : '' }}">{{ $project->priority }}</span></td>
-                            <td data-column="progress">
-                                <div class="progress" aria-label="Project progress"><span style="width: {{ $project->progressPercent() }}%"></span></div>
-                                <strong>{{ $project->progressPercent() }}%</strong>
-                            </td>
-                            <td data-column="due">{{ $project->due_date?->format('d M Y') ?? '-' }}</td>
-                            <td data-column="actions">
-                                <div class="actions">
-                                    <a class="button secondary small icon-only" href="{{ route('projects.show', $project) }}" aria-label="View project" title="View project">
-                                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
-                                    </a>
-                                    <button
-                                        class="button secondary small icon-only"
-                                        type="button"
-                                        aria-label="Edit project"
-                                        title="Edit project"
-                                        data-open-project-modal="edit"
-                                        data-action="{{ route('projects.update', $project) }}"
-                                        data-client-name="{{ $project->client->name }}"
-                                        data-client-email="{{ $project->client->email }}"
-                                        data-client-phone="{{ $project->client->phone }}"
-                                        data-client-tax-id="{{ $project->client->tax_id }}"
-                                        data-project-category-id="{{ $project->project_category_id }}"
-                                        data-staff-ids="{{ $project->staff->pluck('id')->join(',') }}"
-                                        data-name="{{ $project->name }}"
-                                        data-service-type="{{ $project->service_type }}"
-                                        data-status="{{ $project->status }}"
-                                        data-priority="{{ $project->priority }}"
-                                        data-start-date="{{ $project->start_date?->format('Y-m-d') }}"
-                                        data-due-date="{{ $project->due_date?->format('Y-m-d') }}"
-                                        data-created-by="{{ $project->created_by }}"
-                                        data-description="{{ $project->description }}"
-                                    ><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
-                                    <form method="POST" action="{{ route('projects.destroy', $project) }}" onsubmit="return confirm('Delete project {{ $project->name }}? This will also remove its tasks, progress updates, and threats.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="button danger small icon-only" type="submit" aria-label="Delete project" title="Delete project">
-                                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr data-empty-row>
-                            <td colspan="10" class="muted">No projects yet. Create the first client project to start tracking tasks, progress, and threats.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="pagination-bar">
-            <span class="muted" id="projectPaginationInfo">Showing 0 projects</span>
-            <div class="actions">
-                <button class="button secondary small" type="button" id="projectPrevPage">Previous</button>
-                <button class="button secondary small" type="button" id="projectNextPage">Next</button>
-            </div>
-        </div>
-    </section>
+                            <x-heroicon-o-pencil-square class="w-4 h-4" />
+                        </button>
+                        @if (!auth()->check() || auth()->user()->isBoss() || auth()->user()->can('delete projects'))
+                            <form method="POST" action="{{ route('projects.destroy', $project) }}" onsubmit="return confirm('Delete project {{ $project->name }}? This will also remove its tasks, progress updates, and threats.');">
+                                @csrf
+                                @method('DELETE')
+                                <button class="button danger small icon-only" type="submit" aria-label="Delete project" title="Delete project">
+                                    <x-heroicon-o-trash class="w-4 h-4" />
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                </td>
+            </tr>
+        @empty
+            <tr data-empty-row>
+                <td colspan="11" class="muted py-8 text-center text-xs">
+                    No projects yet. Create the first client project to start tracking tasks, progress, and threats.
+                </td>
+            </tr>
+        @endforelse
+    </x-datatable>
 
     <dialog id="projectModal">
         <div class="modal-head">

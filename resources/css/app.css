@@ -27,10 +27,19 @@
     @media (max-width: 700px) { .public-nav { align-items: flex-start; } .public-nav > div a:not(.button) { display: none; } .public-hero, .public-section { padding: 84px 22px; margin-left: auto; } .public-hero h1 { font-size: clamp(3.1rem, 16vw, 5rem); } .service-grid { grid-template-columns: minmax(0, 1fr); } .service-grid article:nth-child(2) { transform: none; } }
 }
 
+@source '../views/**/*.blade.php';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-navy-950: #070e18;
+    --color-navy-900: #0b192c;
+    --color-navy-800: #132a48;
+    --color-navy-700: #1e3e62;
+    --color-navy-600: #2a5684;
+    --color-navy-500: #3874aa;
+    --color-navy-100: #e2ebf4;
+    --color-navy-50: #f0f5fa;
 }

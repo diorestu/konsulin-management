@@ -13,9 +13,14 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_guest_is_redirected_to_login(): void
+    {
+        $this->get('/dashboard')->assertRedirect(route('login'));
+    }
+
     public function test_dashboard_displays_stats_and_charts(): void
     {
-        $user = \App\Models\User::factory()->create();
+        $user = $this->authenticateAsBoss();
         $category = ProjectCategory::create(['name' => 'Finance & Tax', 'is_active' => true]);
         $client = Client::create([
             'name' => 'PT Sinar Pajak',

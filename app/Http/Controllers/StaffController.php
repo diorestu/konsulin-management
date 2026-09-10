@@ -26,6 +26,10 @@ class StaffController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('manage staff') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang diizinkan menambah data staff.');
+        }
+
         Staff::create($this->validated($request));
 
         return redirect()
@@ -35,6 +39,10 @@ class StaffController extends Controller
 
     public function update(Request $request, Staff $staff): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('manage staff') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang diizinkan mengubah data staff.');
+        }
+
         $staff->update($this->validated($request, $staff));
 
         return redirect()
@@ -44,6 +52,10 @@ class StaffController extends Controller
 
     public function destroy(Staff $staff): RedirectResponse
     {
+        if (auth()->check() && !auth()->user()->can('manage staff') && !auth()->user()->isBoss()) {
+            abort(403, 'Hanya pimpinan / admin yang diizinkan menghapus data staff.');
+        }
+
         $staff->delete();
 
         return redirect()

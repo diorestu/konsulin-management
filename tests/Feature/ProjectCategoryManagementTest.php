@@ -12,6 +12,7 @@ class ProjectCategoryManagementTest extends TestCase
 
     public function test_category_index_has_stats_datatable_and_modal_controls(): void
     {
+        $this->authenticateAsBoss();
         ProjectCategory::create([
             'name' => 'Financial Statement',
             'description' => 'Accounting report project category.',
@@ -30,6 +31,7 @@ class ProjectCategoryManagementTest extends TestCase
 
     public function test_category_can_be_created_updated_and_deleted(): void
     {
+        $this->authenticateAsBoss();
         $this->post(route('project-categories.store'), [
             'name' => 'Tax Compliance',
             'description' => 'Monthly and annual tax work.',

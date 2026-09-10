@@ -18,7 +18,7 @@ class ProjectManagementTest extends TestCase
 
     public function test_boss_can_monitor_project_progress_from_dashboard(): void
     {
-        $boss = User::factory()->create(['name' => 'Dewi Partner', 'role' => 'boss']);
+        $boss = $this->authenticateAsBoss();
         $employee = User::factory()->create(['name' => 'Rafi Staff', 'role' => 'employee']);
         $category = ProjectCategory::create(['name' => 'Finance & Tax', 'is_active' => true]);
         $accountingStaff = Staff::create(['name' => 'Ari Accounting', 'type' => 'accounting', 'is_active' => true]);
@@ -67,7 +67,7 @@ class ProjectManagementTest extends TestCase
 
     public function test_project_can_be_created_for_a_client(): void
     {
-        $boss = User::factory()->create(['role' => 'boss']);
+        $boss = $this->authenticateAsBoss();
         $category = ProjectCategory::create(['name' => 'Financial Report', 'is_active' => true]);
         $accountingStaff = Staff::create(['name' => 'Ari Accounting', 'type' => 'accounting', 'is_active' => true]);
         $taxStaff = Staff::create(['name' => 'Nadia Tax', 'type' => 'tax', 'is_active' => true]);
@@ -111,6 +111,7 @@ class ProjectManagementTest extends TestCase
 
     public function test_project_can_be_added_to_an_existing_client(): void
     {
+        $this->authenticateAsBoss();
         $client = Client::create([
             'name' => 'PT Multi Project',
             'email' => 'finance@multi.test',
@@ -135,6 +136,7 @@ class ProjectManagementTest extends TestCase
 
     public function test_project_can_be_updated_with_client_details(): void
     {
+        $this->authenticateAsBoss();
         $project = Project::factory()->create([
             'name' => 'Monthly Bookkeeping',
             'service_type' => 'Accounting',
@@ -179,6 +181,7 @@ class ProjectManagementTest extends TestCase
 
     public function test_project_can_be_deleted_after_confirmation_flow_submits(): void
     {
+        $this->authenticateAsBoss();
         $project = Project::factory()->create(['name' => 'Delete Candidate']);
 
         $this->delete(route('projects.destroy', $project))
@@ -191,11 +194,7 @@ class ProjectManagementTest extends TestCase
 
     public function test_employee_can_upload_progress_and_threat_on_a_project_task(): void
     {
-        $employee = User::factory()->create([
-            'name' => 'Nadia Consultant',
-            'role' => 'employee',
-            'password' => Hash::make('password'),
-        ]);
+        $employee = $this->authenticateAsEmployee();
         $project = Project::factory()->create();
         $task = ProjectTask::create([
             'project_id' => $project->id,

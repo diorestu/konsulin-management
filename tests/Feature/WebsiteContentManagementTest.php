@@ -23,6 +23,7 @@ class WebsiteContentManagementTest extends TestCase
 
     public function test_admin_can_update_website_content(): void
     {
+        $this->authenticateAsBoss();
         $content = WebsiteContent::create(['key' => 'hero', 'label' => 'Homepage Hero', 'type' => 'hero', 'is_published' => true]);
 
         $this->get('/website-content')->assertOk()->assertSee('Homepage Hero');

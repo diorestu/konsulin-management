@@ -14,77 +14,61 @@
         <div class="stat"><strong>{{ $usedCategoriesCount }}</strong><span class="muted">Used in projects</span></div>
     </section>
 
-    <section class="panel" data-animate-children>
-        <div class="datatable-toolbar">
-            <label>Live search
-                <input id="categorySearch" type="search" placeholder="Search category...">
-            </label>
-            <label>Rows per page
-                <select id="categoryRowsPerPage">
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                </select>
-            </label>
-            <details class="column-filter">
-                <summary>View columns</summary>
-                <div class="column-filter-menu">
-                    @foreach (['name' => 'Name', 'description' => 'Description', 'projects' => 'Projects', 'status' => 'Status', 'actions' => 'Actions'] as $column => $label)
-                        <label><input type="checkbox" data-column-toggle="{{ $column }}" checked> {{ $label }}</label>
-                    @endforeach
-                </div>
-            </details>
-        </div>
-
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th data-column="name"><button class="sortable" type="button" data-sort="name">Name</button></th>
-                        <th data-column="description"><button class="sortable" type="button" data-sort="description">Description</button></th>
-                        <th data-column="projects"><button class="sortable" type="button" data-sort="projects">Projects</button></th>
-                        <th data-column="status"><button class="sortable" type="button" data-sort="status">Status</button></th>
-                        <th data-column="actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($categories as $category)
-                        <tr data-row data-name="{{ $category->name }}" data-description="{{ $category->description }}" data-projects="{{ $category->projects_count }}" data-status="{{ $category->is_active ? 'active' : 'inactive' }}">
-                            <td data-column="name"><strong>{{ $category->name }}</strong></td>
-                            <td data-column="description">{{ $category->description ?? '-' }}</td>
-                            <td data-column="projects">{{ $category->projects_count }}</td>
-                            <td data-column="status"><span class="label {{ $category->is_active ? '' : 'warning' }}">{{ $category->is_active ? 'active' : 'inactive' }}</span></td>
-                            <td data-column="actions">
-                                <div class="actions">
-                                    <button class="button secondary small icon-only" type="button" aria-label="Edit category" title="Edit category" data-open-category-modal="edit" data-action="{{ route('project-categories.update', $category) }}" data-name="{{ $category->name }}" data-description="{{ $category->description }}" data-is-active="{{ $category->is_active ? '1' : '0' }}">
-                                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-                                    </button>
-                                    <form method="POST" action="{{ route('project-categories.destroy', $category) }}" onsubmit="return confirm('Delete category {{ $category->name }}?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="button danger small icon-only" type="submit" aria-label="Delete category" title="Delete category">
-                                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="muted">No categories yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="pagination-bar">
-            <span class="muted" id="categoryPaginationInfo">Showing 0 categories</span>
-            <div class="actions">
-                <button class="button secondary small" type="button" id="categoryPrevPage">Previous</button>
-                <button class="button secondary small" type="button" id="categoryNextPage">Next</button>
-            </div>
-        </div>
-    </section>
+    <x-datatable
+        id="category"
+        :columns="[
+            'name' => ['label' => 'Name', 'sortable' => true],
+            'description' => ['label' => 'Description', 'sortable' => true],
+            'projects' => ['label' => 'Projects', 'sortable' => true],
+            'status' => ['label' => 'Status', 'sortable' => true, 'sorted' => true, 'direction' => 'desc'],
+            'actions' => ['label' => 'Actions', 'sortable' => false, 'align' => 'right'],
+        ]"
+        searchPlaceholder="Search category..."
+    >
+        @forelse ($categories as $category)
+            <tr
+                data-row
+                data-name="{{ $category->name }}"
+                data-description="{{ $category->description }}"
+                data-projects="{{ $category->projects_count }}"
+                data-status="{{ $category->is_active ? 'active' : 'inactive' }}"
+                class="hover:bg-slate-50/80 transition-colors"
+            >
+                <td data-column="name" class="py-3.5 px-4 font-semibold text-slate-900">
+                    <strong>{{ $category->name }}</strong>
+                </td>
+                <td data-column="description" class="py-3.5 px-4 text-slate-600">
+                    {{ $category->description ?? '-' }}
+                </td>
+                <td data-column="projects" class="py-3.5 px-4 font-semibold text-slate-800">
+                    {{ $category->projects_count }}
+                </td>
+                <td data-column="status" class="py-3.5 px-4">
+                    <x-datatable.status :type="$category->is_active ? 'active' : 'inactive'" :label="$category->is_active ? 'active' : 'inactive'" />
+                </td>
+                <td data-column="actions" class="py-3.5 px-4 text-right">
+                    <div class="actions justify-end">
+                        <button class="button secondary small icon-only" type="button" aria-label="Edit category" title="Edit category" data-open-category-modal="edit" data-action="{{ route('project-categories.update', $category) }}" data-name="{{ $category->name }}" data-description="{{ $category->description }}" data-is-active="{{ $category->is_active ? '1' : '0' }}">
+                            <x-heroicon-o-pencil-square class="w-4 h-4" />
+                        </button>
+                        @if (!auth()->check() || auth()->user()->isBoss() || auth()->user()->can('manage categories'))
+                            <form method="POST" action="{{ route('project-categories.destroy', $category) }}" onsubmit="return confirm('Delete category {{ $category->name }}?');">
+                                @csrf
+                                @method('DELETE')
+                                <button class="button danger small icon-only" type="submit" aria-label="Delete category" title="Delete category">
+                                    <x-heroicon-o-trash class="w-4 h-4" />
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                </td>
+            </tr>
+        @empty
+            <tr data-empty-row>
+                <td colspan="5" class="muted py-8 text-center text-xs">No categories yet.</td>
+            </tr>
+        @endforelse
+    </x-datatable>
 
     <dialog id="categoryModal">
         <div class="modal-head">
