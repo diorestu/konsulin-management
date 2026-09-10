@@ -1,0 +1,217 @@
+{
+  "meta": {
+    "name": "Konsulin Manager Typography",
+    "version": "1.0.0",
+    "source": "resources/views/components/layouts/app.blade.php",
+    "notes": "Current typography is hardcoded in the Blade layout CSS. This JSON records the active values so they can be reviewed or turned into CSS variables later."
+  },
+  "fontFamilies": {
+    "sans": {
+      "value": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+      "usedBy": ["body", "form controls via inherit"]
+    },
+    "icon": {
+      "value": "Font Awesome 6 Free",
+      "source": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css",
+      "usedBy": ["action icon buttons"]
+    }
+  },
+  "base": {
+    "body": {
+      "fontFamily": "{fontFamilies.sans}",
+      "fontSize": "browser default, inherited as 16px unless overridden",
+      "fontWeight": "400",
+      "lineHeight": "normal"
+    },
+    "letterSpacing": "normal",
+    "textRendering": "browser default"
+  },
+  "typeScale": {
+    "display": {
+      "fontSize": "24px",
+      "lineHeight": "1.2",
+      "fontWeight": "browser default bold",
+      "usedBy": ["h1"]
+    },
+    "sectionTitle": {
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "fontWeight": "browser default bold",
+      "margin": "0 0 14px",
+      "usedBy": ["h2"]
+    },
+    "subsectionTitle": {
+      "fontSize": "13px",
+      "lineHeight": "normal",
+      "fontWeight": "browser default bold",
+      "margin": "0 0 10px",
+      "usedBy": ["h3"]
+    },
+    "body": {
+      "fontSize": "16px inherited",
+      "lineHeight": "normal",
+      "fontWeight": "400",
+      "usedBy": ["paragraphs", "general text"]
+    },
+    "tableBody": {
+      "fontSize": "12px",
+      "lineHeight": "normal",
+      "fontWeight": "400",
+      "usedBy": ["th", "td"]
+    },
+    "caption": {
+      "fontSize": "12px",
+      "lineHeight": "normal",
+      "fontWeight": "500",
+      "usedBy": ["label"]
+    },
+    "micro": {
+      "fontSize": "12px",
+      "lineHeight": "normal",
+      "fontWeight": "500",
+      "textTransform": "capitalize",
+      "usedBy": [".label"]
+    }
+  },
+  "fontWeights": {
+    "regular": "400",
+    "medium": "500",
+    "nav": "550",
+    "semibold": "650",
+    "bold": "700",
+    "heavy": "760",
+    "extraBold": "800"
+  },
+  "components": {
+    "brand": {
+      "selector": ".brand",
+      "fontSize": "18px",
+      "fontWeight": "700",
+      "lineHeight": "normal"
+    },
+    "sidebarNav": {
+      "selector": ".nav a",
+      "fontSize": "13px",
+      "fontWeight": "550",
+      "lineHeight": "normal"
+    },
+    "pageTitle": {
+      "selector": "h1",
+      "fontSize": "24px",
+      "fontWeight": "browser default bold",
+      "lineHeight": "1.2"
+    },
+    "panelTitle": {
+      "selector": "h2",
+      "fontSize": "16px",
+      "fontWeight": "browser default bold",
+      "lineHeight": "normal"
+    },
+    "cardTitle": {
+      "selector": "h3",
+      "fontSize": "13px",
+      "fontWeight": "browser default bold",
+      "lineHeight": "normal"
+    },
+    "button": {
+      "selector": ".button",
+      "fontSize": "12px",
+      "fontWeight": "500",
+      "lineHeight": "normal"
+    },
+    "smallButton": {
+      "selector": ".button.small",
+      "fontSize": "12px",
+      "fontWeight": "500 inherited from .button",
+      "lineHeight": "normal"
+    },
+    "iconButton": {
+      "selector": ".button.icon-only i",
+      "fontSize": "14px",
+      "fontWeight": "Font Awesome icon weight",
+      "lineHeight": "1"
+    },
+    "statValue": {
+      "selector": ".stat strong",
+      "fontSize": "28px",
+      "fontWeight": "browser default bold",
+      "lineHeight": "normal"
+    },
+    "badge": {
+      "selector": ".label",
+      "fontSize": "12px",
+      "fontWeight": "500",
+      "lineHeight": "normal",
+      "textTransform": "capitalize"
+    },
+    "tableHeader": {
+      "selector": "th",
+      "fontSize": "11px",
+      "fontWeight": "browser default bold",
+      "lineHeight": "normal",
+      "textTransform": "uppercase"
+    },
+    "tableCell": {
+      "selector": "td",
+      "fontSize": "12px",
+      "fontWeight": "400",
+      "lineHeight": "normal"
+    },
+    "sortableTableHeader": {
+      "selector": ".sortable",
+      "fontSize": "inherit from th, currently 11px",
+      "fontWeight": "800",
+      "lineHeight": "normal",
+      "textTransform": "inherit from th, currently uppercase"
+    },
+    "formLabel": {
+      "selector": "label",
+      "fontSize": "12px",
+      "fontWeight": "500",
+      "lineHeight": "normal"
+    },
+    "formControl": {
+      "selector": "input, select, textarea",
+      "fontSize": "inherit from parent",
+      "fontWeight": "inherit from parent",
+      "lineHeight": "normal"
+    },
+    "modalCloseButton": {
+      "selector": ".icon-button",
+      "fontSize": "20px",
+      "fontWeight": "browser default",
+      "lineHeight": "1"
+    },
+    "wizardPill": {
+      "selector": ".wizard-pill",
+      "fontSize": "16px inherited",
+      "fontWeight": "800",
+      "lineHeight": "normal"
+    },
+    "alert": {
+      "selector": ".alert",
+      "fontSize": "16px inherited",
+      "fontWeight": "700",
+      "lineHeight": "normal"
+    }
+  },
+  "textTransforms": {
+    "badge": "capitalize",
+    "tableHeader": "uppercase",
+    "sortableHeader": "inherit"
+  },
+  "recommendedEditableTokens": {
+    "fontFamilyBase": "{fontFamilies.sans}",
+    "fontSizePageTitle": "24px",
+    "fontSizePanelTitle": "16px",
+    "fontSizeBody": "16px",
+    "fontSizeTable": "12px",
+    "fontSizeLabel": "12px",
+    "fontSizeBadge": "12px",
+    "fontWeightRegular": "400",
+    "fontWeightButton": "500",
+    "fontWeightNav": "550",
+    "fontWeightBrand": "700",
+    "lineHeightPageTitle": "1.2"
+  }
+}
