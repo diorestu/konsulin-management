@@ -217,6 +217,7 @@ class DatabaseSeeder extends Seeder
                 'client_id' => $client->id,
                 'project_category_id' => $categories[$index]->id,
                 'created_by' => $boss->id,
+                'reviewer_id' => $boss->id,
                 'name' => [
                     'Monthly Tax Compliance',
                     'Annual Financial Statement',
@@ -230,11 +231,10 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Client service project with tracked tasks, progress, and risks.',
             ]);
 
-            $project->staff()->sync(match ($index) {
-                0 => [$staff[0]->id, $staff[1]->id],
-                1 => [$staff[0]->id],
-                default => [$staff[1]->id, $staff[2]->id],
-            });
+            $project->staff()->sync([
+                $staff[0]->id => ['role' => 'pic_accounting'],
+                $staff[1]->id => ['role' => 'pic_tax'],
+            ]);
 
             $task = ProjectTask::create([
                 'project_id' => $project->id,

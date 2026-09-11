@@ -3,12 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class ProjectThreatController extends Controller
 {
-    public function store(Request $request, Project $project): RedirectResponse
+    public function store(Request $request, Project $project): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'project_task_id' => ['nullable', 'exists:project_tasks,id'],
@@ -25,7 +26,27 @@ class ProjectThreatController extends Controller
             ? auth()->id()
             : ($validated['user_id'] ?? auth()->id());
 
-        $project->threats()->create($validated);
+        $threat = $project->threats()->create($validated);
+        $threat->load(['user', 'task']);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Threat "' . $threat->title . '" berhasil dicatat.',
+                'threat' => [
+                    'id' => $threat->id,
+                    'user_name' => $threat->user->name,
+                    'task_title' => $threat->task?->title ?? 'Project threat',
+                    'title' => $threat->title,
+                    'severity' => $threat->severity,
+                    'status' => $threat->status,
+                    'description' => $threat->description,
+                    'mitigation_plan' => $threat->mitigation_plan,
+                    'created_human' => $threat->created_at->diffForHumans(),
+                ],
+                'open_threats' => $project->fresh()->threats()->where('status', 'open')->count(),
+            ]);
+        }
 
         return redirect()
             ->route('projects.show', $project)

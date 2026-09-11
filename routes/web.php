@@ -5,6 +5,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProjectCategoryController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectKanbanController;
 use App\Http\Controllers\ProjectProgressController;
 use App\Http\Controllers\ProjectThreatController;
 use App\Http\Controllers\StaffController;
@@ -33,6 +34,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/website-content', [WebsiteContentController::class, 'index'])->name('website-content.index');
     Route::put('/website-content/{websiteContent}', [WebsiteContentController::class, 'update'])->name('website-content.update');
+
+    Route::get('/kanban', [ProjectKanbanController::class, 'index'])->name('kanban.index');
+    Route::patch('/kanban/projects/{project}/status', [ProjectKanbanController::class, 'updateStatus'])->name('kanban.update-status');
 
     Route::resource('projects', ProjectController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::resource('clients', ClientController::class);

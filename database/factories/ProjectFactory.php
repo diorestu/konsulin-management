@@ -22,6 +22,7 @@ class ProjectFactory extends Factory
         return [
             'client_id' => Client::factory(),
             'created_by' => User::factory(),
+            'reviewer_id' => fn (array $attributes) => $attributes['created_by'] ?? User::factory(),
             'name' => fake()->randomElement([
                 'Monthly Tax Compliance',
                 'Annual Financial Statement',

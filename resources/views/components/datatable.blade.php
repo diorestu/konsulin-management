@@ -9,23 +9,24 @@
     'emptyMessage' => 'Tidak ada data ditemukan.',
 ])
 
-<div class="datatable-container bg-white border border-slate-200/80 rounded-xl shadow-xs overflow-hidden" id="{{ $id }}Container">
+<div class="datatable-container bg-white border border-slate-200/90 rounded-xl shadow-xs relative overflow-visible" id="{{ $id }}Container">
     <!-- Top Toolbar -->
     @if($searchable || $columnFilter || isset($toolbar))
-        <div class="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white">
+        <div class="p-4 border-b border-slate-200/80 rounded-t-xl flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white relative z-20">
             <div class="flex items-center flex-wrap gap-3">
                 @if($searchable)
-                    <div class="relative min-w-[240px]">
+                    <div class="relative min-w-[260px] flex items-center">
                         <label for="{{ $id }}Search" class="sr-only">Live search</label>
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 z-10">
                             <x-heroicon-o-magnifying-glass class="w-4 h-4" />
                         </div>
                         <input
                             id="{{ $id }}Search"
-                            type="search"
+                            type="text"
                             placeholder="{{ $searchPlaceholder }}"
                             aria-label="Live search"
-                            class="w-full pl-9 pr-3.5 py-1.5 h-9 bg-slate-50/70 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0b192c] focus:border-transparent transition-all"
+                            class="datatable-search-input"
+                            autocomplete="off"
                         >
                         <!-- Hidden label for test assertion compatibility -->
                         <span class="sr-only">Live search</span>
@@ -34,25 +35,33 @@
 
                 @if($columnFilter && count($columns) > 0)
                     <details class="column-filter relative">
-                        <summary class="h-9 px-3 py-1.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium cursor-pointer list-none inline-flex items-center gap-1.5 transition select-none">
+                        <summary class="h-9 px-3.5 py-1.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer list-none inline-flex items-center gap-1.5 transition select-none shadow-2xs hover:border-slate-300 active:scale-[0.98]">
                             <x-heroicon-o-view-columns class="w-4 h-4 text-slate-500" />
                             <span>View columns</span>
-                            <x-heroicon-o-chevron-down class="w-3.5 h-3.5 text-slate-400" />
+                            <x-heroicon-o-chevron-down class="w-3.5 h-3.5 text-slate-400 chevron-icon transition-transform duration-150" />
                         </summary>
-                        <div class="column-filter-menu absolute left-0 md:left-auto md:right-0 z-30 min-w-[180px] p-3 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg flex flex-col gap-2">
-                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1 border-b border-slate-100">
-                                Toggle Columns
+                        <div class="column-filter-menu absolute left-0 md:left-auto md:right-0 z-50 min-w-[220px] p-3 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl flex flex-col gap-1.5">
+                            <div class="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1.5 mb-0.5 border-b border-slate-100 flex items-center justify-between">
+                                <span>Toggle Columns</span>
+                                <span class="text-[10px] font-semibold text-slate-400">({{ count($columns) }})</span>
                             </div>
-                            @foreach($columns as $colKey => $colDef)
-                                @php
-                                    $key = is_int($colKey) ? (is_array($colDef) ? ($colDef['key'] ?? $loop->index) : $colDef) : $colKey;
-                                    $label = is_array($colDef) ? ($colDef['label'] ?? $key) : (is_int($colKey) ? ucwords(str_replace('_', ' ', $colDef)) : $colDef);
-                                @endphp
-                                <label class="flex items-center gap-2 px-1 text-xs text-slate-700 hover:text-slate-900 cursor-pointer select-none">
-                                    <input type="checkbox" data-column-toggle="{{ $key }}" checked class="w-3.5 h-3.5 rounded border-slate-300 text-[#0b192c] focus:ring-[#0b192c]">
-                                    <span>{{ $label }}</span>
-                                </label>
-                            @endforeach
+                            <div class="flex flex-col gap-0.5 max-h-[300px] overflow-y-auto pr-1">
+                                @foreach($columns as $colKey => $colDef)
+                                    @php
+                                        $key = is_int($colKey) ? (is_array($colDef) ? ($colDef['key'] ?? $loop->index) : $colDef) : $colKey;
+                                        $label = is_array($colDef) ? ($colDef['label'] ?? $key) : (is_int($colKey) ? ucwords(str_replace('_', ' ', $colDef)) : $colDef);
+                                    @endphp
+                                    <label class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-50 cursor-pointer select-none transition">
+                                        <input
+                                            type="checkbox"
+                                            data-column-toggle="{{ $key }}"
+                                            checked
+                                            class="w-4 h-4 rounded border-slate-300 text-[#0b192c] focus:ring-[#0b192c] accent-[#0b192c] cursor-pointer"
+                                        >
+                                        <span class="font-medium">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
                         </div>
                     </details>
                 @endif

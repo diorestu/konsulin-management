@@ -15,6 +15,7 @@ class Project extends Model
         'client_id',
         'project_category_id',
         'created_by',
+        'reviewer_id',
         'name',
         'service_type',
         'status',
@@ -47,6 +48,13 @@ class Project extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewer_id')->withDefault(function () {
+            return $this->creator;
+        });
+    }
+
     public function tasks()
     {
         return $this->hasMany(ProjectTask::class);
@@ -54,7 +62,33 @@ class Project extends Model
 
     public function staff()
     {
-        return $this->belongsToMany(Staff::class)->withTimestamps();
+        return $this->belongsToMany(Staff::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function accountingStaff()
+    {
+        return $this->belongsToMany(Staff::class)
+            ->where(function ($query) {
+                $query->where('project_staff.role', 'pic_accounting')
+                    ->orWhere(function ($q) {
+                        $q->whereNull('project_staff.role')->where('staff.type', 'accounting');
+                    });
+            })
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function taxStaff()
+    {
+        return $this->belongsToMany(Staff::class)
+            ->where(function ($query) {
+                $query->where('project_staff.role', 'pic_tax')
+                    ->orWhere(function ($q) {
+                        $q->whereNull('project_staff.role')->where('staff.type', 'tax');
+                    });
+            })
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     public function progressUpdates()

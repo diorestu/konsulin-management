@@ -53,9 +53,49 @@ class DashboardTest extends TestCase
             ->assertSee('Active projects')
             ->assertSee('Clients')
             ->assertSee('Open threats')
+            ->assertSee('Tenggat &lt; 7 Hari', false)
+            ->assertSee('Review Pending')
+            ->assertSee('Tenggat Proyek Terdekat')
+            ->assertSee('Matriks Kepatuhan Pajak')
+            ->assertSee('Radar Risiko & Threats Aktif', false)
+            ->assertSee('Beban Kerja Tim PIC')
             ->assertSee('Projects by Category')
             ->assertSee('Progress Updates (Last 14 Days)')
             ->assertSee('projectsByCategoryChart')
-            ->assertSee('progressUpdatesChart');
+            ->assertSee('progressUpdatesChart')
+            ->assertSee('Jumlah Kontrak Klien')
+            ->assertSee('PIC Tax')
+            ->assertSee('Data Migration')
+            ->assertSee('PIC Accounting')
+            ->assertSee('contractDurationsChart')
+            ->assertSee('taxPicChart')
+            ->assertSee('dataMigrationChart')
+            ->assertSee('accountingPicChart');
+    }
+
+    public function test_dashboard_filters_tax_compliance_by_period(): void
+    {
+        $this->authenticateAsBoss();
+        $client = Client::create([
+            'name' => 'PT Mitra Konsulin',
+            'email' => 'mitra@konsulin.test',
+        ]);
+
+        \App\Models\ClientCompliance::create([
+            'client_id' => $client->id,
+            'period' => 'Apr 26',
+            'pph_21' => 'Done',
+            'pph_unifikasi' => 'Done',
+            'ppn' => 'Done',
+            'lk' => 'Final',
+            'notes' => 'Laporan Apr 26 siap.',
+        ]);
+
+        $this->get('/dashboard?period=Apr 26')
+            ->assertOk()
+            ->assertSee('PT Mitra Konsulin')
+            ->assertSee('Apr 26')
+            ->assertSee('Laporan Apr 26 siap.');
     }
 }
+

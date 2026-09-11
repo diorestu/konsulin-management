@@ -76,6 +76,9 @@ class ProjectManagementTest extends TestCase
             'project_category_id' => $category->id,
             'staff_ids' => [$accountingStaff->id, $taxStaff->id],
             'client_name' => 'CV Akuntansi Maju',
+            'client_pic' => 'Bambang Sudiro',
+            'client_type' => 'Badan',
+            'tax_status' => 'PKP',
             'client_email' => 'owner@maju.test',
             'client_phone' => '0822222222',
             'client_tax_id' => '98.765.432.1-000.000',
@@ -92,7 +95,12 @@ class ProjectManagementTest extends TestCase
         $project = Project::first();
 
         $response->assertRedirect(route('projects.show', $project));
-        $this->assertDatabaseHas('clients', ['name' => 'CV Akuntansi Maju']);
+        $this->assertDatabaseHas('clients', [
+            'name' => 'CV Akuntansi Maju',
+            'client_pic' => 'Bambang Sudiro',
+            'client_type' => 'Badan',
+            'tax_status' => 'PKP',
+        ]);
         $this->assertDatabaseHas('projects', [
             'client_id' => Client::first()->id,
             'project_category_id' => $category->id,
@@ -107,6 +115,30 @@ class ProjectManagementTest extends TestCase
             'project_id' => $project->id,
             'staff_id' => $taxStaff->id,
         ]);
+    }
+
+    public function test_project_modal_renders_empty_client_banner_and_switch_tabs(): void
+    {
+        $this->authenticateAsBoss();
+
+        // 1. Without clients
+        $this->get(route('projects.index'))
+            ->assertOk()
+            ->assertSee('Belum Ada Client Terdaftar')
+            ->assertSee('+ Menu Kelola Client');
+
+        // 2. With existing client
+        Client::create([
+            'name' => 'PT Klien Terdaftar',
+            'client_pic' => 'Ibu Maya',
+            'email' => 'maya@klien.test',
+        ]);
+
+        $this->get(route('projects.index'))
+            ->assertOk()
+            ->assertSee('Client Terdaftar (1)')
+            ->assertSee('+ Tambah Client Baru')
+            ->assertSee('Kelola Client');
     }
 
     public function test_project_can_be_added_to_an_existing_client(): void
@@ -239,4 +271,153 @@ class ProjectManagementTest extends TestCase
             'progress_percent' => 75,
         ]);
     }
+
+    public function test_project_team_composition_consists_of_client_accounting_pics_tax_pics_and_reviewer(): void
+    {
+        $boss = $this->authenticateAsBoss();
+        $reviewer = User::factory()->create(['name' => 'Dr. Hendra Partner', 'role' => 'boss']);
+        $client = Client::create(['name' => 'PT Mega Korpora']);
+        $accStaff1 = Staff::create(['name' => 'Ari Accounting', 'type' => 'accounting', 'is_active' => true]);
+        $accStaff2 = Staff::create(['name' => 'Bagus Senior Accountant', 'type' => 'accounting', 'is_active' => true]);
+        $taxStaff1 = Staff::create(['name' => 'Nadia Tax', 'type' => 'tax', 'is_active' => true]);
+        $taxStaff2 = Staff::create(['name' => 'Cahya Tax Officer', 'type' => 'tax', 'is_active' => true]);
+
+        $response = $this->post(route('projects.store'), [
+            'client_id' => $client->id,
+            'reviewer_id' => $reviewer->id,
+            'accounting_staff_ids' => [$accStaff1->id, $accStaff2->id],
+            'tax_staff_ids' => [$taxStaff1->id, $taxStaff2->id],
+            'name' => 'Comprehensive Tax & Financial Audit Review',
+            'service_type' => 'Tax',
+            'status' => 'in_progress',
+            'priority' => 'high',
+        ]);
+
+        $project = Project::where('name', 'Comprehensive Tax & Financial Audit Review')->first();
+        $this->assertNotNull($project);
+        $response->assertRedirect(route('projects.show', $project));
+
+        // 1 Client
+        $this->assertEquals($client->id, $project->client_id);
+        $this->assertEquals('PT Mega Korpora', $project->client->name);
+
+        // 1 Reviewer
+        $this->assertEquals($reviewer->id, $project->reviewer_id);
+        $this->assertEquals('Dr. Hendra Partner', $project->reviewer->name);
+
+        // 1+ PIC Accounting
+        $this->assertCount(2, $project->accountingStaff);
+        $this->assertTrue($project->accountingStaff->contains($accStaff1));
+        $this->assertTrue($project->accountingStaff->contains($accStaff2));
+
+        // 1+ PIC Tax
+        $this->assertCount(2, $project->taxStaff);
+        $this->assertTrue($project->taxStaff->contains($taxStaff1));
+        $this->assertTrue($project->taxStaff->contains($taxStaff2));
+
+        // Display in Projects Index
+        $this->get(route('projects.index'))
+            ->assertOk()
+            ->assertSee('Reviewer')
+            ->assertSee('Dr. Hendra Partner')
+            ->assertSee('PIC Acc')
+            ->assertSee('Ari Accounting')
+            ->assertSee('Bagus Senior Accountant')
+            ->assertSee('PIC Tax')
+            ->assertSee('Nadia Tax')
+            ->assertSee('Cahya Tax Officer');
+
+        // Display in Jira Project Detail
+        $this->get(route('projects.show', $project))
+            ->assertOk()
+            ->assertSee('Team Composition')
+            ->assertSee('Reviewer (1 Orang)')
+            ->assertSee('Dr. Hendra Partner')
+            ->assertSee('PIC Accounting (2)')
+            ->assertSee('PIC Tax (2)');
+    }
+
+    public function test_project_detail_shows_quick_action_buttons_and_modals(): void
+    {
+        $this->authenticateAsBoss();
+        $client = Client::create(['name' => 'PT Konsulin Test', 'email' => 'test@konsulin.test']);
+        $project = Project::create([
+            'client_id' => $client->id,
+            'name' => 'Compliance Review',
+            'service_type' => 'Tax',
+            'status' => 'in_progress',
+            'priority' => 'medium',
+        ]);
+
+        $this->get(route('projects.show', $project))
+            ->assertOk()
+            ->assertSee('Quick Actions')
+            ->assertSee('Add Task')
+            ->assertSee('Upload Progress')
+            ->assertSee('Log Threat')
+            ->assertSee('taskFormModal')
+            ->assertSee('progressModal')
+            ->assertSee('threatModal');
+    }
+
+    public function test_ajax_actions_return_json_for_toast_notification_flow(): void
+    {
+        $boss = $this->authenticateAsBoss();
+        $client = Client::create(['name' => 'PT Konsulin Ajax Test']);
+        $project = Project::create([
+            'client_id' => $client->id,
+            'name' => 'Tax Strategy 2026',
+            'service_type' => 'Tax',
+            'status' => 'in_progress',
+            'priority' => 'high',
+        ]);
+
+        // 1. AJAX Store Task
+        $taskRes = $this->postJson(route('projects.tasks.store', $project), [
+            'title' => 'Verifikasi Bukti Potong 1721',
+            'status' => 'in_progress',
+            'progress_percent' => 50,
+            'due_date' => now()->addDays(5)->toDateString(),
+            'notes' => 'Catatan verifikasi',
+        ]);
+        $taskRes->assertOk()
+            ->assertJson(['success' => true])
+            ->assertJsonPath('task.title', 'Verifikasi Bukti Potong 1721');
+
+        $taskId = $taskRes->json('task.id');
+
+        // 2. AJAX Update Task Status
+        $statusRes = $this->patchJson(route('projects.tasks.update-status', [$project, $taskId]), [
+            'status' => 'completed',
+        ]);
+        $statusRes->assertOk()
+            ->assertJson(['success' => true, 'new_status' => 'completed', 'progress_percent' => 100]);
+
+        // 3. AJAX Store Progress
+        $progRes = $this->postJson(route('projects.progress.store', $project), [
+            'project_task_id' => $taskId,
+            'user_id' => $boss->id,
+            'progress_percent' => 100,
+            'summary' => 'Pekerjaan selesai 100% tepat waktu.',
+            'attachment_path' => 'doc.pdf',
+        ]);
+        $progRes->assertOk()
+            ->assertJson(['success' => true])
+            ->assertJsonPath('progress.progress_percent', 100);
+
+        // 4. AJAX Store Threat
+        $threatRes = $this->postJson(route('projects.threats.store', $project), [
+            'project_task_id' => $taskId,
+            'user_id' => $boss->id,
+            'title' => 'Server DJP Maintenance',
+            'severity' => 'medium',
+            'status' => 'open',
+            'description' => 'Akses e-filing sedang antre.',
+        ]);
+        $threatRes->assertOk()
+            ->assertJson(['success' => true])
+            ->assertJsonPath('threat.title', 'Server DJP Maintenance');
+    }
 }
+
+
