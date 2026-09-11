@@ -26,6 +26,6 @@ class Staff extends Model
 
     public function projects()
     {
-        return $this->belongsToMany(Project::class)->withTimestamps();
+        return $this->belongsToMany(Project::class)->withPivot('role')->withTimestamps();
     }
 }

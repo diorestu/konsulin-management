@@ -1,4 +1,4 @@
-<x-layouts.app title="Kelola Client — Konsulin Manager">
+<x-layouts.app title="Kelola Client - Konsulin Manager">
     <div class="topbar flex-wrap">
         <div>
             <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Kelola Client</h1>
@@ -66,17 +66,51 @@
     <!-- Quick Filters -->
     <div class="mb-4 flex items-center flex-wrap gap-2 text-xs">
         <span class="font-semibold text-slate-500 uppercase tracking-wider mr-1">Filter:</span>
-        <a href="{{ route('clients.index') }}" class="px-2.5 py-1 rounded-full border {{ !request()->hasAny(['contract_status', 'tax_status']) ? 'bg-[#0b192c] text-white border-[#0b192c]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' }}">
-            Semua
+        @php
+            $isAllActive = !request()->hasAny(['contract_status', 'tax_status']);
+            $isContractActive = request('contract_status') === 'Active';
+            $isPkpActive = request('tax_status') === 'PKP';
+            $isNonPkpActive = request('tax_status') === 'Non-PKP';
+        @endphp
+        <a
+            href="{{ route('clients.index') }}"
+            class="filter-badge px-3 py-1.5 rounded-full border text-xs transition-all duration-150 inline-flex items-center gap-1.5 select-none {{ $isAllActive ? 'active !bg-[#0b192c] !text-white !border-[#0b192c] font-semibold shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 font-medium' }}"
+            style="{{ $isAllActive ? 'background-color: #0b192c !important; color: #ffffff !important; border-color: #0b192c !important;' : '' }}"
+        >
+            @if($isAllActive)
+                <span class="w-1.5 h-1.5 rounded-full bg-white shrink-0"></span>
+            @endif
+            <span>Semua</span>
         </a>
-        <a href="{{ route('clients.index', ['contract_status' => 'Active']) }}" class="px-2.5 py-1 rounded-full border {{ request('contract_status') === 'Active' ? 'bg-[#0b192c] text-white border-[#0b192c]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' }}">
-            Kontrak Aktif
+        <a
+            href="{{ route('clients.index', ['contract_status' => 'Active']) }}"
+            class="filter-badge px-3 py-1.5 rounded-full border text-xs transition-all duration-150 inline-flex items-center gap-1.5 select-none {{ $isContractActive ? 'active !bg-[#0b192c] !text-white !border-[#0b192c] font-semibold shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 font-medium' }}"
+            style="{{ $isContractActive ? 'background-color: #0b192c !important; color: #ffffff !important; border-color: #0b192c !important;' : '' }}"
+        >
+            @if($isContractActive)
+                <span class="w-1.5 h-1.5 rounded-full bg-white shrink-0"></span>
+            @endif
+            <span>Kontrak Aktif</span>
         </a>
-        <a href="{{ route('clients.index', ['tax_status' => 'PKP']) }}" class="px-2.5 py-1 rounded-full border {{ request('tax_status') === 'PKP' ? 'bg-[#0b192c] text-white border-[#0b192c]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' }}">
-            PKP
+        <a
+            href="{{ route('clients.index', ['tax_status' => 'PKP']) }}"
+            class="filter-badge px-3 py-1.5 rounded-full border text-xs transition-all duration-150 inline-flex items-center gap-1.5 select-none {{ $isPkpActive ? 'active !bg-[#0b192c] !text-white !border-[#0b192c] font-semibold shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 font-medium' }}"
+            style="{{ $isPkpActive ? 'background-color: #0b192c !important; color: #ffffff !important; border-color: #0b192c !important;' : '' }}"
+        >
+            @if($isPkpActive)
+                <span class="w-1.5 h-1.5 rounded-full bg-white shrink-0"></span>
+            @endif
+            <span>PKP</span>
         </a>
-        <a href="{{ route('clients.index', ['tax_status' => 'Non-PKP']) }}" class="px-2.5 py-1 rounded-full border {{ request('tax_status') === 'Non-PKP' ? 'bg-[#0b192c] text-white border-[#0b192c]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' }}">
-            Non-PKP
+        <a
+            href="{{ route('clients.index', ['tax_status' => 'Non-PKP']) }}"
+            class="filter-badge px-3 py-1.5 rounded-full border text-xs transition-all duration-150 inline-flex items-center gap-1.5 select-none {{ $isNonPkpActive ? 'active !bg-[#0b192c] !text-white !border-[#0b192c] font-semibold shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 font-medium' }}"
+            style="{{ $isNonPkpActive ? 'background-color: #0b192c !important; color: #ffffff !important; border-color: #0b192c !important;' : '' }}"
+        >
+            @if($isNonPkpActive)
+                <span class="w-1.5 h-1.5 rounded-full bg-white shrink-0"></span>
+            @endif
+            <span>Non-PKP</span>
         </a>
     </div>
 

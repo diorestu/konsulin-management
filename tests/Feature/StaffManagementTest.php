@@ -75,4 +75,64 @@ class StaffManagementTest extends TestCase
             'id' => $staff->id,
         ]);
     }
+
+    public function test_staff_index_shows_workload_and_handled_clients_summary(): void
+    {
+        $this->authenticateAsBoss();
+
+        $clientA = \App\Models\Client::create([
+            'name' => 'PT Maju Bersama',
+            'status' => 'active',
+        ]);
+        $clientB = \App\Models\Client::create([
+            'name' => 'CV Sukses Mandiri',
+            'status' => 'active',
+        ]);
+
+        $staff = Staff::create([
+            'name' => 'Budi Konsultan',
+            'email' => 'budi@konsulin.test',
+            'type' => 'tax',
+            'position' => 'Senior Tax Consultant',
+            'is_active' => true,
+        ]);
+
+        $project1 = \App\Models\Project::create([
+            'client_id' => $clientA->id,
+            'name' => 'Audit SPT Tahunan Badan',
+            'service_type' => 'Tax Filing',
+            'status' => 'in_progress',
+            'priority' => 'high',
+        ]);
+        $project2 = \App\Models\Project::create([
+            'client_id' => $clientB->id,
+            'name' => 'Restrukturisasi Pajak',
+            'service_type' => 'Tax Advisory',
+            'status' => 'in_progress',
+            'priority' => 'medium',
+        ]);
+        $project3 = \App\Models\Project::create([
+            'client_id' => $clientB->id,
+            'name' => 'Penyusunan Bukpot PPh 21',
+            'service_type' => 'Tax Filing',
+            'status' => 'completed',
+            'priority' => 'low',
+        ]);
+
+        $staff->projects()->attach([$project1->id, $project2->id, $project3->id]);
+
+        $response = $this->get(route('staff.index'));
+
+        $response->assertOk()
+            ->assertSee('Budi Konsultan')
+            ->assertSee('Total Tim Staff')
+            ->assertSee('Klien Ditangani')
+            ->assertSee('Beban Proyek Aktif')
+            ->assertSee('Kapasitas Tim')
+            ->assertSee('Optimal')
+            ->assertSee('PT Maju Bersama')
+            ->assertSee('CV Sukses Mandiri')
+            ->assertSee('2')
+            ->assertSee('Klien');
+    }
 }

@@ -357,6 +357,32 @@
             outline-offset: 2px;
         }
 
+        /* Filter Pill / Badge High Contrast States */
+        .filter-badge.active,
+        a.filter-badge.active,
+        a.filter-badge.active:link,
+        a.filter-badge.active:visited,
+        a.filter-badge.active:hover,
+        a.filter-badge.active:active,
+        a.filter-badge.active:focus {
+            background-color: #0b192c !important;
+            color: #ffffff !important;
+            border-color: #0b192c !important;
+            font-weight: 600 !important;
+            box-shadow: 0 1px 3px rgba(11, 25, 44, 0.25) !important;
+        }
+        .filter-badge:not(.active),
+        a.filter-badge:not(.active) {
+            color: #334155 !important;
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+        }
+        a.filter-badge:not(.active):hover {
+            color: #0f172a !important;
+            background-color: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+        }
+
         /* Grey / Light Buttons: ALWAYS SOLID BLACK TEXT */
         .button.secondary,
         .button.light,
