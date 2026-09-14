@@ -7,8 +7,10 @@ use App\Models\ClientCompliance;
 use App\Models\Project;
 use App\Models\ProjectCategory;
 use App\Models\ProjectProgressUpdate;
+use App\Models\ProjectTask;
 use App\Models\ProjectThreat;
 use App\Models\Staff;
+use App\Models\TaskTimeLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,6 +19,82 @@ class DashboardController extends Controller
 {
     public function index(Request $request): View
     {
+        $user = auth()->user();
+
+        if ($user && $user->isStaff()) {
+            $assignedProjects = Project::visibleTo($user)
+                ->with(['client', 'category', 'reviewer', 'tasks'])
+                ->orderBy('due_date', 'asc')
+                ->get();
+
+            $assignedProjectIds = $assignedProjects->pluck('id');
+
+            $myTasks = ProjectTask::with(['project.client'])
+                ->where('assigned_to', $user->id)
+                ->orderByRaw("CASE WHEN status = 'in_progress' THEN 1 WHEN status = 'todo' THEN 2 WHEN status = 'review' THEN 3 ELSE 4 END")
+                ->orderBy('due_date', 'asc')
+                ->get();
+
+            $totalMyTasks = $myTasks->count();
+            $inProgressTasks = $myTasks->where('status', 'in_progress')->count();
+            $todoTasks = $myTasks->where('status', 'todo')->count();
+            $completedTasks = $myTasks->where('status', 'done')->count();
+
+            $nearDeadlineTasks = $myTasks->where('status', '!=', 'done')
+                ->filter(function ($t) {
+                    return $t->due_date && Carbon::parse($t->due_date)->lte(Carbon::now()->addDays(7));
+                })->count();
+
+            $activeProjectsCount = $assignedProjects->whereNotIn('status', ['completed', 'cancelled'])->count();
+            $completedProjectsCount = $assignedProjects->where('status', 'completed')->count();
+
+            $recentTimeLogs = TaskTimeLog::with(['task.project.client'])
+                ->where('user_id', $user->id)
+                ->latest()
+                ->take(6)
+                ->get();
+
+            $todayMinutes = (int) TaskTimeLog::where('user_id', $user->id)
+                ->whereDate('started_at', Carbon::today())
+                ->sum('duration_minutes');
+
+            $weekMinutes = (int) TaskTimeLog::where('user_id', $user->id)
+                ->where('started_at', '>=', Carbon::now()->startOfWeek())
+                ->sum('duration_minutes');
+
+            $activeTimeLog = TaskTimeLog::with(['task.project.client'])
+                ->where('user_id', $user->id)
+                ->whereNull('ended_at')
+                ->first();
+
+            $myThreats = ProjectThreat::with(['project.client', 'user'])
+                ->whereIn('project_id', $assignedProjectIds)
+                ->where('status', 'open')
+                ->orderByRaw("CASE WHEN severity = 'critical' THEN 1 WHEN severity = 'high' THEN 2 WHEN severity = 'medium' THEN 3 ELSE 4 END")
+                ->take(5)
+                ->get();
+
+            return view('dashboard.index', [
+                'isStaff' => true,
+                'user' => $user,
+                'myProjects' => $assignedProjects,
+                'myTasks' => $myTasks,
+                'totalMyTasks' => $totalMyTasks,
+                'inProgressTasks' => $inProgressTasks,
+                'todoTasks' => $todoTasks,
+                'completedTasks' => $completedTasks,
+                'nearDeadlineTasks' => $nearDeadlineTasks,
+                'activeProjectsCount' => $activeProjectsCount,
+                'completedProjectsCount' => $completedProjectsCount,
+                'recentTimeLogs' => $recentTimeLogs,
+                'todayMinutes' => $todayMinutes,
+                'weekMinutes' => $weekMinutes,
+                'activeTimeLog' => $activeTimeLog,
+                'myThreats' => $myThreats,
+            ]);
+        }
+
+        $isStaff = false;
         $totalProjects = Project::count();
         $activeProjects = Project::where('status', 'in_progress')->count();
         $completedProjects = Project::where('status', 'completed')->count();
@@ -137,6 +215,7 @@ class DashboardController extends Controller
         })->values();
 
         return view('dashboard.index', compact(
+            'isStaff',
             'totalProjects',
             'activeProjects',
             'completedProjects',

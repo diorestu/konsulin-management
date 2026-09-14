@@ -47,4 +47,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/projects/{project}/tasks/{task}/status', [ProjectController::class, 'updateTaskStatus'])->name('projects.tasks.update-status');
     Route::post('/projects/{project}/progress', [ProjectProgressController::class, 'store'])->name('projects.progress.store');
     Route::post('/projects/{project}/threats', [ProjectThreatController::class, 'store'])->name('projects.threats.store');
+
+    // Time Tracking & Desktop Floating Widget Endpoints
+    Route::get('/time-logs/active', [\App\Http\Controllers\TaskTimeLogController::class, 'active'])->name('time-logs.active');
+    Route::post('/time-logs/start', [\App\Http\Controllers\TaskTimeLogController::class, 'start'])->name('time-logs.start');
+    Route::post('/time-logs/stop', [\App\Http\Controllers\TaskTimeLogController::class, 'stop'])->name('time-logs.stop');
+    Route::get('/time-logs/my-tasks', [\App\Http\Controllers\TaskTimeLogController::class, 'myTasks'])->name('time-logs.my-tasks');
 });

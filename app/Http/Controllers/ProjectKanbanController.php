@@ -21,6 +21,7 @@ class ProjectKanbanController extends Controller
     public function index(Request $request): View
     {
         $query = Project::query()
+            ->visibleTo(auth()->user())
             ->with([
                 'category',
                 'client',
@@ -162,6 +163,10 @@ class ProjectKanbanController extends Controller
      */
     public function updateStatus(Request $request, Project $project): JsonResponse|RedirectResponse
     {
+        if (auth()->check() && auth()->user()->isStaff()) {
+            abort(403, 'Hanya admin dan reviewer yang dapat mengubah status lifecycle project.');
+        }
+
         $validated = $request->validate([
             'status' => ['required', 'string', 'in:not_started,in_progress,waiting_client,completed'],
         ]);

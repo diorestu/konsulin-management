@@ -1,0 +1,34 @@
+{
+  "name": "konsulin-timer-desktop",
+  "version": "1.0.0",
+  "description": "Konsulin Manager Always-on-Top Floating Task Timer for macOS and Windows",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "pack": "electron-builder --dir"
+  },
+  "keywords": ["konsulin", "timer", "always-on-top", "jira", "tax", "accounting"],
+  "author": "Konsulin Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.konsulin.timer",
+    "productName": "Konsulin Timer",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "protocols": {
+      "name": "Konsulin Scheme",
+      "schemes": ["konsulin"]
+    }
+  }
+}

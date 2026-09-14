@@ -26,58 +26,150 @@
                 <x-heroicon-o-arrow-left class="w-4 h-4" />
                 <span>Back</span>
             </a>
-            <button class="button small" type="button" onclick="document.getElementById('taskFormModal').showModal()">
-                <x-heroicon-o-plus class="w-4 h-4" />
-                <span>New Issue / Task</span>
-            </button>
+            @if(!auth()->check() || !auth()->user()->isStaff() || auth()->user()->can('manage tasks'))
+                <button class="button small" type="button" onclick="document.getElementById('taskFormModal').showModal()">
+                    <x-heroicon-o-plus class="w-4 h-4" />
+                    <span>New Issue / Task</span>
+                </button>
+            @endif
         </div>
     </div>
 
-    <!-- Jira Stats Bar -->
+    <!-- Improved Jira Project Stats Bar -->
     <section class="stats" data-animate-children>
+        <!-- Stat 1: Overall Progress & Deliverable Health -->
         <div class="stat">
-            <div class="flex items-center justify-between mb-1">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Overall progress</span>
-                <div class="w-8 h-8 rounded-lg bg-[#0b192c]/5 text-[#0b192c] flex items-center justify-center">
-                    <x-heroicon-o-chart-pie class="w-4 h-4" />
-                </div>
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Overall Progress</span>
+                @if ($project->progressPercent() >= 100)
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Completed
+                    </span>
+                @elseif ($project->threats->where('status', 'open')->count() > 0)
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                        Mitigasi
+                    </span>
+                @else
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                        On Track
+                    </span>
+                @endif
             </div>
-            <strong id="statProjectProgress">{{ $project->progressPercent() }}%</strong>
-            <div class="progress" style="margin: 6px 0 0;"><span id="statProjectProgressBar" style="width: {{ $project->progressPercent() }}%"></span></div>
+            <div class="flex items-baseline justify-between mb-1.5">
+                <strong id="statProjectProgress" class="text-2xl font-bold tracking-tight text-slate-900 font-mono">
+                    {{ $project->progressPercent() }}%
+                </strong>
+                <span class="text-[11px] text-slate-500 font-medium">
+                    {{ $project->tasks->where('status', 'completed')->count() }} / {{ $project->tasks->count() }} task
+                </span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-2">
+                <div id="statProjectProgressBar" class="bg-[#0b192c] h-2 rounded-full transition-all duration-300" style="width: {{ $project->progressPercent() }}%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-500">
+                <span class="truncate">Target: {{ $project->due_date?->format('d M Y') ?? 'TBA' }}</span>
+                @if ($project->due_date && $project->due_date->isPast() && $project->status !== 'completed')
+                    <span class="text-rose-600 font-bold shrink-0">Overdue</span>
+                @elseif ($project->due_date)
+                    <span class="text-slate-400 shrink-0">{{ $project->due_date->diffForHumans() }}</span>
+                @endif
+            </div>
         </div>
+
+        <!-- Stat 2: Tasks Lifecycle & Velocity -->
         <div class="stat">
-            <div class="flex items-center justify-between mb-1">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tasks</span>
-                <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tasks Lifecycle</span>
+                <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100">
                     <x-heroicon-o-check-circle class="w-4 h-4" />
                 </div>
             </div>
-            <strong id="statTasksCount">{{ $project->tasks->count() }}</strong>
-            <span class="text-xs text-slate-500" id="statTasksSubtext">{{ $project->tasks->where('status', 'completed')->count() }} done · {{ $project->tasks->where('status', 'in_progress')->count() }} in progress</span>
+            <div class="flex items-baseline gap-2 mb-2">
+                <strong id="statTasksCount" class="text-2xl font-bold tracking-tight text-slate-900 font-mono">
+                    {{ $project->tasks->count() }}
+                </strong>
+                <span class="text-xs text-slate-500 font-medium">Total Isu</span>
+            </div>
+            <!-- Micro Status Distribution Chips -->
+            <div class="grid grid-cols-4 gap-1 mb-2">
+                <div class="text-center py-1 rounded bg-emerald-50 border border-emerald-100" title="Done / Selesai">
+                    <div class="text-[11px] font-bold text-emerald-800">{{ $project->tasks->where('status', 'completed')->count() }}</div>
+                    <div class="text-[9px] uppercase font-bold text-emerald-600">Done</div>
+                </div>
+                <div class="text-center py-1 rounded bg-blue-50 border border-blue-100" title="In Progress / Berjalan">
+                    <div class="text-[11px] font-bold text-blue-800">{{ $project->tasks->where('status', 'in_progress')->count() }}</div>
+                    <div class="text-[9px] uppercase font-bold text-blue-600">Active</div>
+                </div>
+                <div class="text-center py-1 rounded bg-amber-50 border border-amber-100" title="Waiting Client / Review">
+                    <div class="text-[11px] font-bold text-amber-800">{{ $project->tasks->where('status', 'waiting_client')->count() }}</div>
+                    <div class="text-[9px] uppercase font-bold text-amber-600">Wait</div>
+                </div>
+                <div class="text-center py-1 rounded bg-slate-100 border border-slate-200" title="To Do / Belum Dimulai">
+                    <div class="text-[11px] font-bold text-slate-700">{{ $project->tasks->where('status', 'not_started')->count() }}</div>
+                    <div class="text-[9px] uppercase font-bold text-slate-500">To Do</div>
+                </div>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate" id="statTasksSubtext">
+                {{ $project->tasks->where('status', 'completed')->count() }} done · {{ $project->tasks->where('status', 'in_progress')->count() }} in progress
+            </div>
         </div>
+
+        <!-- Stat 3: Staff Logged Work Time (Connected to Time Tracker!) -->
         <div class="stat">
-            <div class="flex items-center justify-between mb-1">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Open threats</span>
-                <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Logged Work Time</span>
+                <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+                    <x-heroicon-o-clock class="w-4 h-4" />
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2 mb-1.5">
+                <strong class="text-2xl font-bold tracking-tight text-slate-900 font-mono">
+                    {{ $project->formattedTotalLoggedTime() }}
+                </strong>
+                <span class="text-xs text-slate-500 font-medium">Tercatat</span>
+            </div>
+            <div class="p-1.5 rounded-lg bg-slate-50 border border-slate-200 mb-2 flex items-center justify-between text-[11px]">
+                <span class="text-slate-600 font-medium flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Staff Timer</span>
+                </span>
+                <span class="font-bold text-slate-900 font-mono">{{ $project->staff->count() }} PIC Ditugaskan</span>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate">
+                Lacak jam kerja real-time tim konsultan
+            </div>
+        </div>
+
+        <!-- Stat 4: Operational Threats & Risks -->
+        <div class="stat {{ $project->threats->where('status', 'open')->count() > 0 ? 'border-rose-300 bg-rose-50/20' : '' }}">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Operational Threats</span>
+                <div class="w-7 h-7 rounded-lg {{ $project->threats->where('status', 'open')->count() > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-700' }} flex items-center justify-center border {{ $project->threats->where('status', 'open')->count() > 0 ? 'border-rose-200' : 'border-emerald-100' }}">
                     <x-heroicon-o-shield-exclamation class="w-4 h-4" />
                 </div>
             </div>
-            <strong id="statOpenThreatsCount" class="{{ $project->threats->where('status', 'open')->count() > 0 ? 'text-rose-600' : '' }}">
-                {{ $project->threats->where('status', 'open')->count() }}
-            </strong>
-            <span id="statOpenThreatsSubtext" class="text-xs {{ $project->threats->where('status', 'open')->count() > 0 ? 'text-rose-600 font-medium' : 'text-slate-500' }}">
-                {{ $project->threats->where('status', 'open')->count() > 0 ? 'Active operational risks' : 'No open threats' }}
-            </span>
-        </div>
-        <div class="stat">
-            <div class="flex items-center justify-between mb-1">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned staff</span>
-                <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                    <x-heroicon-o-user-group class="w-4 h-4" />
-                </div>
+            <div class="flex items-baseline gap-2 mb-1.5">
+                <strong id="statOpenThreatsCount" class="text-2xl font-bold tracking-tight font-mono {{ $project->threats->where('status', 'open')->count() > 0 ? 'text-rose-600' : 'text-slate-900' }}">
+                    {{ $project->threats->where('status', 'open')->count() }}
+                </strong>
+                @if ($project->threats->where('status', 'open')->count() > 0)
+                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                        Perlu Tindakan
+                    </span>
+                @else
+                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Zero Blocker
+                    </span>
+                @endif
             </div>
-            <strong>{{ $project->staff->count() }}</strong>
-            <span class="text-xs text-slate-500">Cross-functional team</span>
+            <div class="p-1.5 rounded-lg {{ $project->threats->where('status', 'open')->count() > 0 ? 'bg-rose-50 border border-rose-200' : 'bg-emerald-50/60 border border-emerald-200/60' }} mb-2 text-[11px]">
+                <span id="statOpenThreatsSubtext" class="{{ $project->threats->where('status', 'open')->count() > 0 ? 'text-rose-800 font-semibold' : 'text-emerald-800 font-medium' }}">
+                    {{ $project->threats->where('status', 'open')->count() > 0 ? 'Terdapat resiko operasional aktif' : 'Status project aman tanpa resiko aktif' }}
+                </span>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate">
+                Monitoring kepatuhan & risiko klien
+            </div>
         </div>
     </section>
 
@@ -247,16 +339,36 @@
                                             @endif
                                         </div>
 
-                                        <!-- Quick Status Move Menu (Jira Style Transition - AJAX) -->
-                                        <div class="mt-2 pt-1.5 border-t border-dashed border-slate-100 flex items-center justify-between">
-                                            <span class="text-[10px] text-slate-400">Move to:</span>
+                                        <!-- Quick Status Move Menu & Timer Action -->
+                                        <div class="mt-2 pt-1.5 border-t border-dashed border-slate-100 flex items-center justify-between gap-1">
+                                            @php
+                                                $canEditThisTask = !auth()->check() || !auth()->user()->isStaff() || (int)$task->assigned_to === (int)auth()->id();
+                                            @endphp
+                                            @if(auth()->check() && auth()->user()->isStaff() && (int)$task->assigned_to === (int)auth()->id())
+                                                <button
+                                                    type="button"
+                                                    data-task-timer-btn="{{ $task->id }}"
+                                                    onclick="window.KonsulinTimer.start({{ $task->id }})"
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer shrink-0"
+                                                    title="Mulai Waktu Kerja"
+                                                >
+                                                    <x-heroicon-o-play class="w-3 h-3 text-slate-500" />
+                                                    <span>Mulai</span>
+                                                </button>
+                                            @endif
                                             <form method="POST" action="{{ route('projects.tasks.update-status', [$project, $task]) }}" class="inline-flex gap-1 m-0">
                                                 @csrf
                                                 @method('PATCH')
                                                 <select
                                                     name="status"
-                                                    onchange="changeTaskStatus(this, '{{ route('projects.tasks.update-status', [$project, $task]) }}', {{ $task->id }})"
-                                                    class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-50 border border-slate-200 rounded text-slate-700 cursor-pointer font-medium task-status-select"
+                                                    @if(!$canEditThisTask)
+                                                        disabled
+                                                        title="Hanya staff yang ditugaskan yang dapat memperbarui tugas ini"
+                                                        class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-100 border border-slate-200 rounded text-slate-400 cursor-not-allowed font-medium task-status-select"
+                                                    @else
+                                                        onchange="changeTaskStatus(this, '{{ route('projects.tasks.update-status', [$project, $task]) }}', {{ $task->id }})"
+                                                        class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-50 border border-slate-200 rounded text-slate-700 cursor-pointer font-medium task-status-select"
+                                                    @endif
                                                 >
                                                     <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>To Do</option>
                                                     <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>In Progress</option>
@@ -290,6 +402,7 @@
                                     <th>Status</th>
                                     <th>Progress</th>
                                     <th>Due</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="tasksTableBody">
@@ -307,9 +420,25 @@
                                             <div class="font-bold task-table-progress">{{ $task->progress_percent }}%</div>
                                         </td>
                                         <td>{{ $task->due_date?->format('d M Y') ?? '-' }}</td>
+                                        <td>
+                                            @if(auth()->check() && auth()->user()->isStaff() && (int)$task->assigned_to === (int)auth()->id())
+                                                <button
+                                                    type="button"
+                                                    data-task-timer-btn="{{ $task->id }}"
+                                                    onclick="window.KonsulinTimer.start({{ $task->id }})"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                                                    title="Mulai Waktu Kerja"
+                                                >
+                                                    <x-heroicon-o-play class="w-3 h-3 text-slate-500" />
+                                                    <span>Mulai</span>
+                                                </button>
+                                            @else
+                                                <span class="text-xs text-slate-400">-</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @empty
-                                    <tr id="emptyTasksTableRow"><td colspan="5" class="muted">No tasks yet.</td></tr>
+                                    <tr id="emptyTasksTableRow"><td colspan="6" class="muted">No tasks yet.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -740,6 +869,11 @@
 
                 updateKanbanColumnStates();
                 window.toast?.success(data.message || 'Status task berhasil diperbarui.');
+
+                if (newStatus === 'in_progress' && window.KonsulinTimer) {
+                    const taskTitle = card.querySelector('.task-title-text')?.textContent?.trim() || 'Task';
+                    window.KonsulinTimer.promptStartOnInProgress(taskId, taskTitle, '{{ addslashes($project->name) }}');
+                }
             })
             .catch(err => {
                 console.error(err);
@@ -789,6 +923,10 @@
 
                         const task = data.task;
                         if (task) {
+                            const isStaffUser = {{ auth()->check() && auth()->user()->isStaff() ? 'true' : 'false' }};
+                            const currentAuthId = {{ auth()->id() ?? 'null' }};
+                            const canEditDynamic = !isStaffUser || (task.assigned_to && Number(task.assigned_to) === Number(currentAuthId));
+
                             const colContainer = document.getElementById(`kanban-col-${task.status}`);
                             if (colContainer) {
                                 const newCard = document.createElement('div');
@@ -815,10 +953,24 @@
                                         </div>
                                         ${task.due_date ? `<span>${escapeHtml(task.due_date)}</span>` : ''}
                                     </div>
-                                    <div class="mt-2 pt-1.5 border-t border-dashed border-slate-100 flex items-center justify-between">
-                                        <span class="text-[10px] text-slate-400">Move to:</span>
+                                    <div class="mt-2 pt-1.5 border-t border-dashed border-slate-100 flex items-center justify-between gap-1">
+                                        ${(isStaffUser && canEditDynamic) ? `
+                                            <button
+                                                type="button"
+                                                data-task-timer-btn="${task.id}"
+                                                onclick="window.KonsulinTimer.start(${task.id})"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer shrink-0"
+                                                title="Mulai Waktu Kerja"
+                                            >
+                                                <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg>
+                                                <span>Mulai</span>
+                                            </button>
+                                        ` : ''}
                                         <form method="POST" action="/projects/{{ $project->id }}/tasks/${task.id}/status" class="inline-flex gap-1 m-0">
-                                            <select name="status" onchange="changeTaskStatus(this, '/projects/{{ $project->id }}/tasks/${task.id}/status', ${task.id})" class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-50 border border-slate-200 rounded text-slate-700 cursor-pointer font-medium task-status-select">
+                                            <select
+                                                name="status"
+                                                ${!canEditDynamic ? 'disabled title="Hanya staff yang ditugaskan yang dapat memperbarui tugas ini" class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-100 border border-slate-200 rounded text-slate-400 cursor-not-allowed font-medium task-status-select"' : `onchange="changeTaskStatus(this, '/projects/{{ $project->id }}/tasks/${task.id}/status', ${task.id})" class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-50 border border-slate-200 rounded text-slate-700 cursor-pointer font-medium task-status-select"`}
+                                            >
                                                 <option value="not_started" ${task.status === 'not_started' ? 'selected' : ''}>To Do</option>
                                                 <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
                                                 <option value="waiting_client" ${task.status === 'waiting_client' ? 'selected' : ''}>Waiting</option>
@@ -845,6 +997,20 @@
                                     <td><span class="label task-table-status-label">${escapeHtml(task.status.replace('_', ' '))}</span></td>
                                     <td><div class="font-bold task-table-progress">${task.progress_percent}%</div></td>
                                     <td>${escapeHtml(task.due_date_full)}</td>
+                                    <td>
+                                        ${(isStaffUser && canEditDynamic) ? `
+                                            <button
+                                                type="button"
+                                                data-task-timer-btn="${task.id}"
+                                                onclick="window.KonsulinTimer.start(${task.id})"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                                                title="Mulai Waktu Kerja"
+                                            >
+                                                <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg>
+                                                <span>Mulai</span>
+                                            </button>
+                                        ` : '<span class="text-xs text-slate-400">-</span>'}
+                                    </td>
                                 `;
                                 tableBody.appendChild(tr);
                             }

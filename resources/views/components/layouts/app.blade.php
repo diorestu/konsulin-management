@@ -54,13 +54,23 @@
         .sidebar {
             background: #0b192c;
             color: #f8fafc;
-            padding: 22px 16px;
+            padding: 20px 16px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             border-right: 1px solid #132a48;
-            transition: padding 0.22s ease;
-            position: relative;
+            transition: padding 0.22s ease, width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 260px;
+            height: 100vh;
+            max-height: 100vh;
+            overflow: hidden;
+            overscroll-behavior: none;
+            z-index: 40;
+            user-select: none;
         }
         .brand-header {
             display: flex;
@@ -115,6 +125,7 @@
         }
         .shell.sidebar-collapsed .sidebar,
         html.sidebar-is-collapsed .sidebar {
+            width: 74px;
             padding: 20px 8px;
             align-items: center;
         }
@@ -299,6 +310,8 @@
         }
 
         .main {
+            grid-column: 2;
+            min-width: 0;
             padding: 24px 32px 48px;
             background: #f8fafc;
             max-width: 100%;
@@ -1025,8 +1038,8 @@
 
         @media (max-width: 960px) {
             .shell { grid-template-columns: 1fr; }
-            .sidebar { position: static; padding: 18px; }
-            .main { padding: 18px; }
+            .sidebar { position: static; width: 100%; height: auto; max-height: none; overflow: visible; padding: 18px; }
+            .main { grid-column: 1; padding: 18px; }
             .stats:not(.stats-row-6):not(.stats-row-4) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .grid:not([class*="grid-cols-"]), .form-grid, .datatable-toolbar { grid-template-columns: 1fr; }
             .topbar { flex-direction: column; align-items: stretch; }
@@ -1298,6 +1311,15 @@
                     toggleBtn.setAttribute('aria-expanded', 'false');
                 }
             }
+
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.addEventListener('wheel', (e) => {
+                    if (window.innerWidth > 960) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+            }
         });
     </script>
 </head>
@@ -1339,30 +1361,36 @@
                         <x-heroicon-o-view-columns />
                         <span>Kanban Board</span>
                     </a>
-                    <a href="{{ route('projects.index') }}" class="{{ request()->routeIs('projects.*') ? 'active' : '' }}" data-tooltip="Projects & Compliance">
+                    <a href="{{ route('projects.index') }}" class="{{ request()->routeIs('projects.*') ? 'active' : '' }}" data-tooltip="{{ auth()->check() && auth()->user()->isStaff() ? 'Proyek Saya' : 'Projects & Compliance' }}">
                         <x-heroicon-o-clipboard-document-list />
-                        <span>Projects & Compliance</span>
+                        <span>{{ auth()->check() && auth()->user()->isStaff() ? 'Proyek Saya' : 'Projects & Compliance' }}</span>
                     </a>
-                    <a href="{{ route('clients.index') }}" class="{{ request()->routeIs('clients.*') ? 'active' : '' }}" data-tooltip="Kelola Client">
-                        <x-heroicon-o-building-office-2 />
-                        <span>Kelola Client</span>
-                    </a>
-                    <a href="{{ route('project-categories.index') }}" class="{{ request()->routeIs('project-categories.*') ? 'active' : '' }}" data-tooltip="Project Categories">
-                        <x-heroicon-o-tag />
-                        <span>Project Categories</span>
-                    </a>
-                    <a href="{{ route('staff.index') }}" class="{{ request()->routeIs('staff.*') ? 'active' : '' }}" data-tooltip="Staff / Employees">
-                        <x-heroicon-o-user-group />
-                        <span>Staff / Employees</span>
-                    </a>
+                    @if(auth()->check() && !auth()->user()->isStaff())
+                        <a href="{{ route('clients.index') }}" class="{{ request()->routeIs('clients.*') ? 'active' : '' }}" data-tooltip="Kelola Client">
+                            <x-heroicon-o-building-office-2 />
+                            <span>Kelola Client</span>
+                        </a>
+                    @endif
+                    @if(auth()->check() && auth()->user()->isAdmin())
+                        <a href="{{ route('project-categories.index') }}" class="{{ request()->routeIs('project-categories.*') ? 'active' : '' }}" data-tooltip="Project Categories">
+                            <x-heroicon-o-tag />
+                            <span>Project Categories</span>
+                        </a>
+                        <a href="{{ route('staff.index') }}" class="{{ request()->routeIs('staff.*') ? 'active' : '' }}" data-tooltip="Staff / Employees">
+                            <x-heroicon-o-user-group />
+                            <span>Staff / Employees</span>
+                        </a>
+                    @endif
                 </nav>
 
                 <div class="nav-label" style="margin-top: 14px;">External</div>
                 <nav class="nav">
-                    <a href="{{ route('website-content.index') }}" class="{{ request()->routeIs('website-content.*') ? 'active' : '' }}" data-tooltip="Website Content">
-                        <x-heroicon-o-globe-alt />
-                        <span>Website Content</span>
-                    </a>
+                    @if(auth()->check() && auth()->user()->isAdmin())
+                        <a href="{{ route('website-content.index') }}" class="{{ request()->routeIs('website-content.*') ? 'active' : '' }}" data-tooltip="Website Content">
+                            <x-heroicon-o-globe-alt />
+                            <span>Website Content</span>
+                        </a>
+                    @endif
                     <a href="{{ route('home') }}" target="_blank" data-tooltip="Live Landing Page">
                         <x-heroicon-o-arrow-top-right-on-square />
                         <span>Live Landing Page</span>
@@ -1381,13 +1409,17 @@
                             <div class="user-info overflow-hidden">
                                 <div class="text-xs font-semibold text-white truncate">{{ auth()->user()->name }}</div>
                                 <div class="flex items-center gap-1 mt-0.5">
-                                    @if(auth()->user()->isBoss())
+                                    @if(auth()->user()->isAdmin())
                                         <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                            Partner (Boss)
+                                            Admin
+                                        </span>
+                                    @elseif(auth()->user()->isReviewer())
+                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                            Reviewer
                                         </span>
                                     @else
                                         <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                                            Consultant
+                                            Staff
                                         </span>
                                     @endif
                                 </div>
@@ -1451,6 +1483,7 @@
                 @endif
 
                 {{ $slot }}
+                <x-task-timer-widget />
             </div>
         </main>
     </div>

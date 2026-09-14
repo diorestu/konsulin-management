@@ -1,4 +1,4 @@
-<x-layouts.app :title="$client->name . ' — Detail Client & Matriks Kepatuhan'">
+<x-layouts.app :title="$client->name . ' : Detail Client & Matriks Kepatuhan'">
     <div class="topbar flex-wrap">
         <div>
             <div class="flex items-center gap-2 mb-1">

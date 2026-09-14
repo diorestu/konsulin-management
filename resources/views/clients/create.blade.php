@@ -1,4 +1,4 @@
-<x-layouts.app title="Tambah Client Baru — Konsulin Manager">
+<x-layouts.app title="Tambah Client Baru : Konsulin Manager">
     <div class="topbar">
         <div>
             <div class="flex items-center gap-2 mb-1">

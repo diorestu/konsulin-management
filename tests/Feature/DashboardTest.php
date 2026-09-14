@@ -97,5 +97,84 @@ class DashboardTest extends TestCase
             ->assertSee('Apr 26')
             ->assertSee('Laporan Apr 26 siap.');
     }
+
+    public function test_staff_dashboard_displays_staff_workbench_and_scopes_menu(): void
+    {
+        $staff = $this->authenticateAsEmployee();
+
+        $client = Client::create([
+            'name' => 'PT Klien Staff',
+            'email' => 'klienstaff@test.com',
+        ]);
+
+        $project = Project::create([
+            'client_id' => $client->id,
+            'name' => 'Audit Keuangan Internal',
+            'service_type' => 'Accounting',
+            'status' => 'in_progress',
+            'priority' => 'high',
+            'start_date' => now()->toDateString(),
+            'due_date' => now()->addDays(5)->toDateString(),
+        ]);
+
+        $task = \App\Models\ProjectTask::create([
+            'project_id' => $project->id,
+            'assigned_to' => $staff->id,
+            'title' => 'Rekonsiliasi Bank Bulan Maret',
+            'priority' => 'high',
+            'status' => 'in_progress',
+            'due_date' => now()->addDays(2)->toDateString(),
+        ]);
+
+        $response = $this->get('/dashboard');
+
+        $response->assertOk();
+        // Staff Dashboard specific elements
+        $response->assertSee('Dashboard Staff');
+        $response->assertSee('Staff Workspace');
+        $response->assertSee('Tugas Ditugaskan');
+        $response->assertSee('Rekonsiliasi Bank Bulan Maret');
+        $response->assertSee('Proyek yang Ditugaskan ke Saya');
+        $response->assertSee('Audit Keuangan Internal');
+        $response->assertSee('Always-on-Top Time Tracker');
+        $response->assertSee('Waktu Hari Ini');
+
+        // Must NOT see executive charts & sensitive tables
+        $response->assertDontSee('Distribusi Portofolio &amp; Penugasan Klien', false);
+        $response->assertDontSee('Jumlah Kontrak Klien');
+        $response->assertDontSee('Matriks Kepatuhan Pajak');
+        $response->assertDontSee('Beban Kerja Tim PIC');
+
+        // Menu scoping for staff
+        $response->assertSee('Proyek Saya');
+        $response->assertSee('Kanban Board');
+        $response->assertDontSee('Kelola Client');
+        $response->assertDontSee('Project Categories');
+        $response->assertDontSee('Staff / Employees');
+        $response->assertDontSee('Website Content');
+    }
+
+    public function test_admin_sees_all_menus_and_executive_dashboard(): void
+    {
+        $this->authenticateAsBoss();
+
+        $response = $this->get('/dashboard');
+
+        $response->assertOk();
+        // Admin sees all menus
+        $response->assertSee('Dashboard');
+        $response->assertSee('Kanban Board');
+        $response->assertSee('Projects & Compliance');
+        $response->assertSee('Kelola Client');
+        $response->assertSee('Project Categories');
+        $response->assertSee('Staff / Employees');
+        $response->assertSee('Website Content');
+        $response->assertSee('Live Landing Page');
+
+        // Admin sees executive dashboard
+        $response->assertSee('Operasional & Kepatuhan');
+        $response->assertSee('Total projects');
+        $response->assertSee('Clients');
+    }
 }
 

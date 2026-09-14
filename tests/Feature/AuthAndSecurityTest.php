@@ -50,7 +50,13 @@ class AuthAndSecurityTest extends TestCase
             ->assertOk()
             ->assertSee('Konsulin Manager')
             ->assertSee('Email Kantor')
-            ->assertSee('Kata Sandi');
+            ->assertSee('Kata Sandi')
+            ->assertSee('admin@konsulin.test')
+            ->assertSee('reviewer@konsulin.test')
+            ->assertSee('rafi@konsulin.test')
+            ->assertSee('Admin')
+            ->assertSee('Reviewer')
+            ->assertSee('Staff');
     }
 
     public function test_user_can_authenticate_and_redirects_to_dashboard(): void

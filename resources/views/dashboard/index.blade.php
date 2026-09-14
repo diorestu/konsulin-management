@@ -1,11 +1,473 @@
-<x-layouts.app title="Dashboard: Konsulin Manager">
+<x-layouts.app :title="(!empty($isStaff) && $isStaff) ? 'Dashboard Staff : Konsulin Manager' : 'Dashboard : Konsulin Manager'">
+@if(!empty($isStaff) && $isStaff)
+    <!-- Topbar Header for Staff -->
+    <div class="topbar !mb-4 !pb-3">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1>Dashboard Staff</h1>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                    Staff Workspace
+                </span>
+            </div>
+            <p class="muted !text-xs mt-0.5">Selamat datang, {{ auth()->user()->name }}. Kelola penugasan tugas Anda, pantau tenggat waktu, dan catat jam kerja.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('kanban.index') }}" class="button small">
+                <x-heroicon-o-view-columns class="w-3.5 h-3.5" />
+                <span>Kanban Board</span>
+            </a>
+            <a href="{{ route('projects.index') }}" class="button secondary small">
+                <x-heroicon-o-folder class="w-3.5 h-3.5" />
+                <span>Proyek Saya</span>
+            </a>
+            <button
+                type="button"
+                onclick="window.KonsulinTimer && window.KonsulinTimer.openTaskPickerModal()"
+                class="button secondary small border-emerald-600/30 text-emerald-800 hover:bg-emerald-50 cursor-pointer"
+            >
+                <x-heroicon-o-play class="w-3.5 h-3.5 text-emerald-600" />
+                <span>Lacak Waktu Kerja</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Staff Stat Strip (6 Cards) -->
+    <div class="overflow-x-auto pb-1 mb-5 -mx-1 px-1">
+        <section class="stats-row-6 grid grid-cols-6 gap-2.5 min-w-[680px] lg:min-w-0">
+            <!-- 1. Total My Tasks -->
+            <div class="stat !p-3 !rounded-xl border border-slate-200/90 bg-white shadow-xs">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider truncate">Tugas Ditugaskan</span>
+                    <div class="w-5 h-5 rounded bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                        <x-heroicon-o-clipboard-document-check class="w-3 h-3" />
+                    </div>
+                </div>
+                <strong class="text-lg font-bold text-slate-900 block leading-tight">{{ $totalMyTasks }}</strong>
+                <span class="text-[10.5px] text-slate-500 font-medium truncate block mt-0.5">
+                    {{ $completedTasks }} selesai · {{ $todoTasks + $inProgressTasks }} aktif
+                </span>
+            </div>
+
+            <!-- 2. Sedang Dikerjakan -->
+            <div class="stat !p-3 !rounded-xl border border-slate-200/90 bg-white shadow-xs">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider truncate">Sedang Dikerjakan</span>
+                    <div class="w-5 h-5 rounded bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                        <x-heroicon-o-play class="w-3 h-3" />
+                    </div>
+                </div>
+                <strong class="text-lg font-bold text-blue-700 block leading-tight">{{ $inProgressTasks }}</strong>
+                <span class="text-[10.5px] text-blue-600 font-medium truncate block mt-0.5">Fokus pengerjaan</span>
+            </div>
+
+            <!-- 3. Tenggat Kritis -->
+            <div class="stat !p-3 !rounded-xl border border-slate-200/90 bg-white shadow-xs">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider truncate">Tenggat &lt; 7 Hari</span>
+                    <div class="w-5 h-5 rounded {{ $nearDeadlineTasks > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center shrink-0">
+                        <x-heroicon-o-clock class="w-3 h-3" />
+                    </div>
+                </div>
+                <strong class="text-lg font-bold {{ $nearDeadlineTasks > 0 ? 'text-amber-700' : 'text-slate-800' }} block leading-tight">{{ $nearDeadlineTasks }}</strong>
+                <span class="text-[10.5px] {{ $nearDeadlineTasks > 0 ? 'text-amber-700 font-semibold' : 'text-slate-500 font-medium' }} truncate block mt-0.5">
+                    {{ $nearDeadlineTasks > 0 ? 'Mendekati deadline' : 'Jadwal aman' }}
+                </span>
+            </div>
+
+            <!-- 4. Proyek Saya -->
+            <div class="stat !p-3 !rounded-xl border border-slate-200/90 bg-white shadow-xs">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider truncate">Proyek Saya</span>
+                    <div class="w-5 h-5 rounded bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                        <x-heroicon-o-folder class="w-3 h-3" />
+                    </div>
+                </div>
+                <strong class="text-lg font-bold text-emerald-700 block leading-tight">{{ $activeProjectsCount }}</strong>
+                <span class="text-[10.5px] text-emerald-600 font-medium truncate block mt-0.5">
+                    {{ $completedProjectsCount }} selesai diarsip
+                </span>
+            </div>
+
+            <!-- 5. Jam Kerja Hari Ini -->
+            <div class="stat !p-3 !rounded-xl border border-slate-200/90 bg-white shadow-xs">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider truncate">Waktu Hari Ini</span>
+                    <div class="w-5 h-5 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                        <x-heroicon-o-bolt class="w-3 h-3" />
+                    </div>
+                </div>
+                <strong class="text-lg font-bold text-indigo-700 block leading-tight">
+                    {{ floor($todayMinutes / 60) }}j {{ $todayMinutes % 60 }}m
+                </strong>
+                <span class="text-[10.5px] text-indigo-600 font-medium truncate block mt-0.5">
+                    Minggu: {{ floor($weekMinutes / 60) }}j {{ $weekMinutes % 60 }}m
+                </span>
+            </div>
+
+            <!-- 6. Status Time Tracker -->
+            <div class="stat !p-3 !rounded-xl border border-slate-200/90 bg-white shadow-xs">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider truncate">Status Tracker</span>
+                    <div class="w-5 h-5 rounded {{ $activeTimeLog ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center shrink-0">
+                        <x-heroicon-o-arrow-path class="w-3 h-3 {{ $activeTimeLog ? 'animate-spin text-emerald-600' : '' }}" />
+                    </div>
+                </div>
+                <strong class="text-lg font-bold {{ $activeTimeLog ? 'text-emerald-700' : 'text-slate-800' }} block leading-tight">
+                    {{ $activeTimeLog ? 'Sedang Aktif' : 'Standby' }}
+                </strong>
+                <span class="text-[10.5px] {{ $activeTimeLog ? 'text-emerald-700 font-semibold' : 'text-slate-500 font-medium' }} truncate block mt-0.5">
+                    {{ $activeTimeLog ? ($activeTimeLog->task->title ?? 'Tugas aktif') : 'Siap mulai sesi' }}
+                </span>
+            </div>
+        </section>
+    </div>
+
+    <!-- Staff Main Grid (7 : 5) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start mb-8">
+        <!-- Left Column: Tasks & Projects (Col 7) -->
+        <div class="lg:col-span-7 flex flex-col gap-5">
+            <!-- Panel 1: Daftar Tugas Penugasan Saya -->
+            <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2 border-b border-slate-100">
+                    <div>
+                        <h2 class="!text-sm !font-bold text-slate-900 !mb-0.5 flex items-center gap-2">
+                            <x-heroicon-o-check-badge class="w-4 h-4 text-blue-600" />
+                            <span>Tugas Penugasan Saya</span>
+                        </h2>
+                        <p class="text-[11px] text-slate-500">Tugas yang ditugaskan kepada Anda pada seluruh proyek aktif.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                            {{ $myTasks->count() }} Tugas
+                        </span>
+                    </div>
+                </div>
+
+                @if($myTasks->isNotEmpty())
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-200 bg-slate-50/75 text-slate-500 font-semibold uppercase text-[10.5px]">
+                                    <th class="py-2 px-2.5">Judul Tugas & Proyek</th>
+                                    <th class="py-2 px-2.5">Prioritas</th>
+                                    <th class="py-2 px-2.5">Tenggat</th>
+                                    <th class="py-2 px-2.5">Status</th>
+                                    <th class="py-2 px-2 text-right">Lacak Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach($myTasks as $task)
+                                    <tr class="hover:bg-slate-50/60 transition-colors">
+                                        <td class="py-2.5 px-2.5">
+                                            <div class="font-semibold text-slate-900">{{ $task->title }}</div>
+                                            <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 truncate">
+                                                <span class="font-medium text-slate-700">{{ $task->project->name ?? 'Proyek' }}</span>
+                                                <span>·</span>
+                                                <span>{{ $task->project->client->name ?? 'Klien' }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-2.5 px-2.5 whitespace-nowrap">
+                                            @if($task->priority === 'high')
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">High</span>
+                                            @elseif($task->priority === 'medium')
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Medium</span>
+                                            @else
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">Low</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 px-2.5 whitespace-nowrap">
+                                            @if($task->due_date)
+                                                <span class="font-mono text-[11px] text-slate-700">
+                                                    {{ \Carbon\Carbon::parse($task->due_date)->format('d M Y') }}
+                                                </span>
+                                            @else
+                                                <span class="text-slate-400 text-[11px]">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 px-2.5 whitespace-nowrap">
+                                            @if($task->status === 'done')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Selesai</span>
+                                            @elseif($task->status === 'in_progress')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">In Progress</span>
+                                            @elseif($task->status === 'review')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">Review</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">Todo</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 px-2 text-right whitespace-nowrap">
+                                            @if($activeTimeLog && $activeTimeLog->project_task_id === $task->id)
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                                                    <span>Berjalan</span>
+                                                </span>
+                                            @else
+                                                <button
+                                                    type="button"
+                                                    onclick="window.KonsulinTimer && window.KonsulinTimer.start({{ $task->id }}, '{{ addslashes($task->title) }}', '{{ addslashes($task->project->client->name ?? 'Klien') }}')"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 hover:bg-[#0b192c] text-slate-700 hover:text-white border border-slate-200 transition cursor-pointer"
+                                                    title="Mulai Lacak Waktu untuk Tugas Ini"
+                                                >
+                                                    <x-heroicon-o-play class="w-3 h-3 text-emerald-600" />
+                                                    <span>Mulai</span>
+                                                </button>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="p-6 text-center text-slate-500 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                        <x-heroicon-o-clipboard-document-check class="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                        <p class="text-xs font-medium">Belum ada tugas yang ditugaskan kepada Anda saat ini.</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Tugas yang di-assign oleh Admin atau Reviewer akan muncul di sini.</p>
+                    </div>
+                @endif
+            </section>
+
+            <!-- Panel 2: Proyek yang Ditugaskan ke Saya -->
+            <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                    <div>
+                        <h2 class="!text-sm !font-bold text-slate-900 !mb-0.5 flex items-center gap-2">
+                            <x-heroicon-o-folder class="w-4 h-4 text-blue-600" />
+                            <span>Proyek yang Ditugaskan ke Saya</span>
+                        </h2>
+                        <p class="text-[11px] text-slate-500">Daftar proyek aktif di mana Anda terlibat sebagai pelaksana tugas.</p>
+                    </div>
+                    <a href="{{ route('projects.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                        <span>Lihat Semua</span>
+                        <x-heroicon-o-arrow-right class="w-3 h-3" />
+                    </a>
+                </div>
+
+                @if($myProjects->isNotEmpty())
+                    <div class="space-y-3">
+                        @foreach($myProjects as $proj)
+                            @php
+                                $totalTasks = $proj->tasks->count();
+                                $doneTasks = $proj->tasks->where('status', 'done')->count();
+                                $pct = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100) : 0;
+                            @endphp
+                            <div class="p-3 rounded-lg border border-slate-200/90 hover:border-slate-300 bg-slate-50/30 transition">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                    <div>
+                                        <a href="{{ route('projects.show', $proj) }}" class="text-xs font-bold text-slate-900 hover:text-blue-600 hover:underline flex items-center gap-1.5">
+                                            <span>{{ $proj->name }}</span>
+                                            <span class="text-[10.5px] font-normal text-slate-500">({{ $proj->client->name ?? 'Klien' }})</span>
+                                        </a>
+                                        <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+                                            <span>Kategori: <strong>{{ $proj->category->name ?? 'Umum' }}</strong></span>
+                                            <span>·</span>
+                                            <span>Tenggat: <strong>{{ $proj->due_date ? \Carbon\Carbon::parse($proj->due_date)->format('d M Y') : '-' }}</strong></span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        @if($proj->status === 'completed')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Selesai</span>
+                                        @elseif($proj->status === 'review')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">Review</span>
+                                        @else
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">In Progress</span>
+                                        @endif
+                                        <a href="{{ route('projects.show', $proj) }}" class="button secondary small !py-1 !px-2.5 !text-[11px]">
+                                            Detail Proyek
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <div class="flex items-center justify-between text-[10.5px] text-slate-500 font-medium mb-1">
+                                        <span>Progress Tugas: {{ $doneTasks }}/{{ $totalTasks }} Selesai</span>
+                                        <span class="font-bold text-slate-700">{{ $pct }}%</span>
+                                    </div>
+                                    <div class="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                                        <div class="h-full bg-blue-600 rounded-full transition-all duration-300" style="width: {{ $pct }}%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="p-6 text-center text-slate-500 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                        <x-heroicon-o-folder class="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                        <p class="text-xs font-medium">Belum ada proyek yang ditugaskan kepada Anda.</p>
+                    </div>
+                @endif
+            </section>
+        </div>
+
+        <!-- Right Column: Time Tracking & Threats (Col 5) -->
+        <div class="lg:col-span-5 flex flex-col gap-5">
+            <!-- Panel 1: Always-on-Top Work Time Tracker Control -->
+            <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                    <div>
+                        <h2 class="!text-sm !font-bold text-slate-900 !mb-0.5 flex items-center gap-2">
+                            <x-heroicon-o-clock class="w-4 h-4 text-emerald-600" />
+                            <span>Always-on-Top Time Tracker</span>
+                        </h2>
+                        <p class="text-[11px] text-slate-500">Lacak durasi kerja per tugas agar fokus dan akuntabel.</p>
+                    </div>
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Staff Tool
+                    </span>
+                </div>
+
+                @if($activeTimeLog)
+                    <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 mb-3">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-800">
+                                <span class="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span>
+                                Sesi Waktu Sedang Berjalan
+                            </span>
+                            <span class="text-[11px] font-mono font-bold text-emerald-800">
+                                Dimulai {{ \Carbon\Carbon::parse($activeTimeLog->started_at)->format('H:i') }}
+                            </span>
+                        </div>
+                        <div class="text-xs font-bold text-slate-900 truncate">{{ $activeTimeLog->task->title ?? 'Tugas Aktif' }}</div>
+                        <div class="text-[11px] text-slate-600 mt-0.5 truncate">{{ $activeTimeLog->task->project->name ?? 'Proyek' }} · {{ $activeTimeLog->task->project->client->name ?? 'Klien' }}</div>
+
+                        <div class="mt-3 flex items-center gap-2">
+                            <button
+                                type="button"
+                                onclick="window.KonsulinTimer && window.KonsulinTimer.togglePiP()"
+                                class="button secondary small !py-1 !px-2.5 !text-[11px] flex-1 flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                                <x-heroicon-o-arrows-pointing-out class="w-3.5 h-3.5" />
+                                <span>Always-on-Top</span>
+                            </button>
+                            <button
+                                type="button"
+                                onclick="window.KonsulinTimer && window.KonsulinTimer.openStopModal()"
+                                class="button small !py-1 !px-2.5 !text-[11px] !bg-rose-700 hover:!bg-rose-800 flex items-center justify-center gap-1 text-white cursor-pointer"
+                            >
+                                <x-heroicon-s-stop class="w-3 h-3" />
+                                <span>Selesai & Simpan</span>
+                            </button>
+                        </div>
+                    </div>
+                @else
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 mb-3 text-center">
+                        <p class="text-xs text-slate-600 font-medium">Tidak ada sesi waktu yang sedang berjalan.</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Pilih tugas yang ingin Anda kerjakan untuk memulai stopwatch.</p>
+                        <button
+                            type="button"
+                            onclick="window.KonsulinTimer && window.KonsulinTimer.openTaskPickerModal()"
+                            class="button small !py-1.5 !px-3 !text-xs !bg-[#0b192c] text-white mt-2.5 inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <x-heroicon-o-play class="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Mulai Sesi Waktu Kerja</span>
+                        </button>
+                    </div>
+                @endif
+
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Aplikasi Desktop:</span>
+                    <button
+                        type="button"
+                        onclick="window.KonsulinTimer && window.KonsulinTimer.openDesktopAppLink()"
+                        class="text-blue-600 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                        <x-heroicon-o-computer-desktop class="w-3.5 h-3.5" />
+                        <span>Buka Aplikasi Mac / Windows</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Panel 2: Riwayat Pencatatan Waktu Terbaru -->
+            <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                    <div>
+                        <h2 class="!text-sm !font-bold text-slate-900 !mb-0.5 flex items-center gap-2">
+                            <x-heroicon-o-list-bullet class="w-4 h-4 text-indigo-600" />
+                            <span>Pencatatan Waktu Terbaru</span>
+                        </h2>
+                        <p class="text-[11px] text-slate-500">Log pengerjaan tugas terakhir yang telah Anda selesaikan.</p>
+                    </div>
+                </div>
+
+                @if($recentTimeLogs->isNotEmpty())
+                    <div class="space-y-2">
+                        @foreach($recentTimeLogs as $log)
+                            <div class="p-2.5 rounded-lg border border-slate-200/70 bg-white flex items-center justify-between gap-2">
+                                <div class="overflow-hidden">
+                                    <div class="text-xs font-semibold text-slate-900 truncate">
+                                        {{ $log->task->title ?? 'Tugas' }}
+                                    </div>
+                                    <div class="text-[10.5px] text-slate-500 truncate mt-0.5">
+                                        {{ \Carbon\Carbon::parse($log->started_at)->format('d M, H:i') }}
+                                        @if($log->ended_at)
+                                            - {{ \Carbon\Carbon::parse($log->ended_at)->format('H:i') }}
+                                        @endif
+                                        · {{ $log->task->project->name ?? 'Proyek' }}
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-indigo-50 text-indigo-800 border border-indigo-200 shrink-0">
+                                    {{ $log->duration_minutes ?? 0 }}m
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="p-4 text-center text-slate-500 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                        <p class="text-xs">Belum ada riwayat pengerjaan waktu yang tercatat.</p>
+                    </div>
+                @endif
+            </section>
+
+            <!-- Panel 3: Radar Kendala & Threats Proyek Saya -->
+            <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                    <div>
+                        <h2 class="!text-sm !font-bold text-slate-900 !mb-0.5 flex items-center gap-2">
+                            <x-heroicon-o-shield-exclamation class="w-4 h-4 text-rose-600" />
+                            <span>Kendala & Threats Proyek</span>
+                        </h2>
+                        <p class="text-[11px] text-slate-500">Isu operasional yang perlu diwaspadai pada proyek Anda.</p>
+                    </div>
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ $myThreats->count() > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-50 text-emerald-700' }}">
+                        {{ $myThreats->count() }} Terbuka
+                    </span>
+                </div>
+
+                @if($myThreats->isNotEmpty())
+                    <div class="space-y-2">
+                        @foreach($myThreats as $threat)
+                            <div class="p-2.5 rounded-lg border border-rose-200 bg-rose-50/30">
+                                <div class="flex items-center justify-between gap-1 mb-1">
+                                    <span class="text-xs font-bold text-slate-900 truncate">{{ $threat->title }}</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase {{ $threat->severity === 'critical' ? 'bg-rose-600 text-white' : ($threat->severity === 'high' ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-800') }}">
+                                        {{ $threat->severity }}
+                                    </span>
+                                </div>
+                                <div class="text-[11px] text-slate-600 line-clamp-2">{{ $threat->description }}</div>
+                                <div class="text-[10px] text-slate-400 mt-1.5 pt-1 border-t border-rose-100 flex items-center justify-between">
+                                    <span>Proyek: <strong>{{ $threat->project->name ?? 'Proyek' }}</strong></span>
+                                    <span>Oleh: {{ $threat->user->name ?? 'Tim' }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="p-4 text-center text-slate-500 bg-emerald-50/30 rounded-lg border border-dashed border-emerald-200">
+                        <x-heroicon-o-check-circle class="w-6 h-6 mx-auto mb-1 text-emerald-600" />
+                        <p class="text-xs font-semibold text-emerald-800">Tidak ada kendala aktif pada proyek Anda.</p>
+                        <p class="text-[10.5px] text-emerald-700 mt-0.5">Semua proses operasional berjalan lancar.</p>
+                    </div>
+                @endif
+            </section>
+        </div>
+    </div>
+@else
     <!-- Topbar Header -->
     <div class="topbar !mb-4 !pb-3">
         <div>
             <div class="flex items-center gap-2">
                 <h1>Dashboard</h1>
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                    Operasional & Kepatuhan
+                    Operasional &amp; Kepatuhan
                 </span>
             </div>
             <p class="muted !text-xs mt-0.5">Monitoring performa proyek, kepatuhan pajak bulanan, beban tim PIC, dan mitigasi risiko.</p>
@@ -691,7 +1153,9 @@
 
         </div>
     </div>
+@endif
 
+@if(empty($isStaff) || !$isStaff)
     <!-- Chart.js Engine -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script>
@@ -946,4 +1410,5 @@
             });
         }
     </script>
+@endif
 </x-layouts.app>

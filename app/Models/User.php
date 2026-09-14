@@ -18,9 +18,39 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles;
 
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('admin') || $this->role === 'admin' || $this->hasRole('boss') || $this->role === 'boss';
+    }
+
+    public function isReviewer(): bool
+    {
+        return $this->hasRole('reviewer') || $this->role === 'reviewer';
+    }
+
+    public function isStaff(): bool
+    {
+        if ($this->isAdmin() || $this->isReviewer()) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function isBoss(): bool
     {
-        return $this->hasRole('boss') || $this->role === 'boss';
+        return $this->isAdmin();
+    }
+
+    public function getRoleDisplayNameAttribute(): string
+    {
+        if ($this->isAdmin()) {
+            return 'Admin';
+        }
+        if ($this->isReviewer()) {
+            return 'Reviewer';
+        }
+        return 'Staff';
     }
 
     public function getInitialsAttribute(): string
@@ -46,6 +76,19 @@ class User extends Authenticatable
     public function threats()
     {
         return $this->hasMany(ProjectThreat::class);
+    }
+
+    public function timeLogs()
+    {
+        return $this->hasMany(TaskTimeLog::class);
+    }
+
+    public function activeTimeLog()
+    {
+        return $this->hasOne(TaskTimeLog::class)
+            ->where('status', 'running')
+            ->whereNull('stopped_at')
+            ->latest('started_at');
     }
 
     /**

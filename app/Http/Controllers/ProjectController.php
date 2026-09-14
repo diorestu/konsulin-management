@@ -18,7 +18,9 @@ class ProjectController extends Controller
 {
     public function index(): View
     {
-        $projects = Project::query()
+        $user = auth()->user();
+        $projectsQuery = Project::query()->visibleTo($user);
+        $projects = (clone $projectsQuery)
             ->with(['category', 'client', 'staff', 'reviewer', 'tasks.assignee', 'threats'])
             ->latest()
             ->get();
@@ -42,15 +44,18 @@ class ProjectController extends Controller
             'taxStaffList' => $taxStaffList,
             'reviewers' => User::orderBy('name')->get(),
             'bosses' => User::where('role', 'boss')->orderBy('name')->get(),
-            'totalProjectsCount' => Project::count(),
+            'totalProjectsCount' => (clone $projectsQuery)->count(),
             'clientsCount' => Client::count(),
-            'activeProjectsCount' => Project::whereNotIn('status', ['completed', 'cancelled'])->count(),
+            'activeProjectsCount' => (clone $projectsQuery)->whereNotIn('status', ['completed', 'cancelled'])->count(),
             'openThreatsCount' => ProjectThreat::where('status', 'open')->count(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        if (auth()->check() && auth()->user()->isStaff() && !auth()->user()->can('create projects')) {
+            abort(403, 'Hanya admin dan reviewer yang dapat membuat project baru.');
+        }
         $validated = $request->validate([
             'client_mode' => ['nullable', 'string', 'in:existing,new'],
             'client_id' => ['nullable', 'exists:clients,id'],
@@ -140,6 +145,10 @@ class ProjectController extends Controller
 
     public function show(Project $project): View
     {
+        if (auth()->check() && ! $project->isAssignedTo(auth()->user())) {
+            abort(403, 'Akses ditolak. Anda hanya dapat melihat project yang ditugaskan kepada Anda.');
+        }
+
         $project->load([
             'client',
             'category',
@@ -162,6 +171,9 @@ class ProjectController extends Controller
 
     public function update(Request $request, Project $project): RedirectResponse
     {
+        if (auth()->check() && auth()->user()->isStaff() && !auth()->user()->can('edit projects')) {
+            abort(403, 'Hanya admin dan reviewer yang dapat mengubah data project.');
+        }
         $validated = $request->validate([
             'client_name' => ['required', 'string', 'max:255'],
             'client_pic' => ['nullable', 'string', 'max:255'],
@@ -261,6 +273,10 @@ class ProjectController extends Controller
 
     public function storeTask(Request $request, Project $project): JsonResponse|RedirectResponse
     {
+        if (auth()->check() && auth()->user()->isStaff() && !auth()->user()->can('manage tasks')) {
+            abort(403, 'Hanya admin dan reviewer yang dapat menambahkan tugas baru.');
+        }
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'assigned_to' => ['nullable', 'exists:users,id'],
@@ -302,6 +318,10 @@ class ProjectController extends Controller
 
     public function updateTaskStatus(Request $request, Project $project, ProjectTask $task): JsonResponse|RedirectResponse
     {
+        if (auth()->check() && ! $task->canBeUpdatedBy(auth()->user())) {
+            abort(403, 'Akses ditolak. Anda hanya dapat memperbarui tugas yang ditugaskan kepada Anda.');
+        }
+
         $validated = $request->validate([
             'status' => ['required', 'string', 'in:not_started,in_progress,waiting_client,completed'],
         ]);

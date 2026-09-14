@@ -25,9 +25,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         foreach ([
-            ['key' => 'hero', 'label' => 'Homepage Hero', 'type' => 'hero', 'title' => 'Konsultasi yang membuat bisnis lebih siap.', 'body' => 'Konsulin membantu bisnis menata pajak, akuntansi, dan keputusan finansial dengan pendampingan yang jelas.', 'button_text' => 'Mulai Konsultasi', 'button_url' => '#contact', 'sort_order' => 10],
-            ['key' => 'services', 'label' => 'Services Intro', 'type' => 'section', 'title' => 'Keahlian yang bekerja untuk Anda.', 'body' => 'Dari kepatuhan pajak sampai laporan keuangan, pilih dukungan yang sesuai dengan tahap bisnis Anda.', 'sort_order' => 20],
-            ['key' => 'contact', 'label' => 'Contact CTA', 'type' => 'cta', 'title' => 'Siap membicarakan kebutuhan bisnis Anda?', 'body' => 'Ceritakan tantangan Anda dan tim Konsulin akan membantu menentukan langkah berikutnya.', 'button_text' => 'Hubungi Konsulin', 'button_url' => 'mailto:hello@konsulin.id', 'sort_order' => 30],
+            ['key' => 'hero', 'label' => 'Homepage Hero', 'type' => 'hero', 'title' => 'Sistem Manajemen Proyek & Operasional Konsultasi.', 'body' => 'Konsulin Manager adalah platform internal terintegrasi untuk mengelola kepatuhan pajak berkala, laporan akuntansi, audit risiko proyek, dan pelacakan waktu kerja konsultan.', 'button_text' => 'Masuk ke Workspace', 'button_url' => '/login', 'sort_order' => 10],
+            ['key' => 'services', 'label' => 'Services Intro', 'type' => 'section', 'title' => 'Fungsi & Arsitektur Sistem.', 'body' => 'Dirancang dengan presisi gaya Jira untuk menyelaraskan alur kerja antara Partner (Admin), Supervisor (Reviewer), dan Pelaksana (Staff).', 'sort_order' => 20],
+            ['key' => 'contact', 'label' => 'Contact CTA', 'type' => 'cta', 'title' => 'Akses Workspace Konsulin Manager', 'body' => 'Gunakan kredensial resmi kantor atau akun demo untuk mengevaluasi fitur manajemen proyek sesuai peran Anda.', 'button_text' => 'Buka Halaman Login', 'button_url' => '/login', 'sort_order' => 30],
         ] as $content) {
             WebsiteContent::updateOrCreate(['key' => $content['key']], $content);
         }
@@ -55,6 +55,26 @@ class DatabaseSeeder extends Seeder
             \Spatie\Permission\Models\Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
+        // Roles: admin, reviewer, staff (with backward compatibility for boss and employee)
+        $adminRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $adminRole->syncPermissions(\Spatie\Permission\Models\Permission::all());
+
+        $reviewerRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'reviewer', 'guard_name' => 'web']);
+        $reviewerRole->syncPermissions([
+            'view projects',
+            'edit projects',
+            'view clients',
+            'manage tasks',
+            'update task progress',
+            'manage threats',
+        ]);
+
+        $staffRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'staff', 'guard_name' => 'web']);
+        $staffRole->syncPermissions([
+            'view projects',
+            'update task progress',
+        ]);
+
         $bossRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'boss', 'guard_name' => 'web']);
         $bossRole->syncPermissions(\Spatie\Permission\Models\Permission::all());
 
@@ -76,24 +96,45 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Dewi Partner',
                 'password' => \Illuminate\Support\Facades\Hash::make('password'),
-                'role' => 'boss',
+                'role' => 'admin',
             ]
         );
-        $boss->assignRole($bossRole);
+        $boss->assignRole([$adminRole, $bossRole]);
+
+        $adminUser = User::updateOrCreate(
+            ['email' => 'admin@konsulin.test'],
+            [
+                'name' => 'Dewi Admin',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'role' => 'admin',
+            ]
+        );
+        $adminUser->assignRole([$adminRole, $bossRole]);
+
+        $reviewer = User::updateOrCreate(
+            ['email' => 'reviewer@konsulin.test'],
+            [
+                'name' => 'Nadia Reviewer',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'role' => 'reviewer',
+            ]
+        );
+        $reviewer->assignRole($reviewerRole);
 
         $employees = collect([
-            ['name' => 'Nadia Consultant', 'email' => 'nadia@konsulin.test'],
-            ['name' => 'Rafi Staff', 'email' => 'rafi@konsulin.test'],
-            ['name' => 'Bagus Accountant', 'email' => 'bagus@konsulin.test'],
+            ['name' => 'Nadia Consultant', 'email' => 'nadia@konsulin.test', 'role' => 'reviewer', 'roleObj' => $reviewerRole],
+            ['name' => 'Rafi Staff', 'email' => 'rafi@konsulin.test', 'role' => 'staff', 'roleObj' => $staffRole],
+            ['name' => 'Bagus Accountant', 'email' => 'bagus@konsulin.test', 'role' => 'staff', 'roleObj' => $staffRole],
         ])->map(function (array $user) use ($employeeRole) {
+            $roleObj = $user['roleObj'];
+            unset($user['roleObj']);
             $u = User::updateOrCreate(
                 ['email' => $user['email']],
                 $user + [
-                    'role' => 'employee',
                     'password' => \Illuminate\Support\Facades\Hash::make('password'),
                 ]
             );
-            $u->assignRole($employeeRole);
+            $u->assignRole([$roleObj, $employeeRole]);
             return $u;
         });
 
@@ -202,7 +243,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Tax Compliance', 'description' => 'Monthly and annual tax compliance work.', 'is_active' => true],
             ['name' => 'Financial Statement', 'description' => 'Financial report and accounting preparation.', 'is_active' => true],
             ['name' => 'Finance & Tax', 'description' => 'Combined accounting and tax project.', 'is_active' => true],
-        ])->map(fn (array $category) => ProjectCategory::create($category));
+        ])->map(fn (array $category) => ProjectCategory::firstOrCreate(['name' => $category['name']], $category));
 
         $staff = collect([
             ['name' => 'Ari Accounting', 'email' => 'ari@konsulin.test', 'phone' => '0811111111', 'type' => 'accounting', 'position' => 'Senior Accountant', 'is_active' => true],
@@ -210,64 +251,84 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Laras Legal', 'email' => 'laras@konsulin.test', 'phone' => '0833333333', 'type' => 'legal', 'position' => 'Legal Officer', 'is_active' => true],
             ['name' => 'Dimas Marketing', 'email' => 'dimas@konsulin.test', 'phone' => '0844444444', 'type' => 'marketing', 'position' => 'Account Executive', 'is_active' => true],
             ['name' => 'Bima IT', 'email' => 'bima@konsulin.test', 'phone' => '0855555555', 'type' => 'it', 'position' => 'IT Support', 'is_active' => true],
-        ])->map(fn (array $employee) => Staff::create($employee));
+        ])->map(fn (array $employee) => Staff::firstOrCreate(['email' => $employee['email']], $employee));
 
         $clients->each(function (Client $client, int $index) use ($boss, $employees, $categories, $staff): void {
-            $project = Project::create([
-                'client_id' => $client->id,
-                'project_category_id' => $categories[$index]->id,
-                'created_by' => $boss->id,
-                'reviewer_id' => $boss->id,
-                'name' => [
-                    'Monthly Tax Compliance',
-                    'Annual Financial Statement',
-                    'VAT Reconciliation'
-                ][$index],
-                'service_type' => ['Tax', 'Accounting', 'Tax'][$index],
-                'status' => ['in_progress', 'waiting_client', 'completed'][$index],
-                'priority' => ['high', 'medium', 'urgent'][$index],
-                'start_date' => now()->subDays(7 - $index)->toDateString(),
-                'due_date' => now()->addDays(10 + ($index * 7))->toDateString(),
-                'description' => 'Client service project with tracked tasks, progress, and risks.',
-            ]);
+            $projectName = [
+                'Monthly Tax Compliance',
+                'Annual Financial Statement',
+                'VAT Reconciliation'
+            ][$index];
+
+            $project = Project::firstOrCreate(
+                [
+                    'client_id' => $client->id,
+                    'name' => $projectName,
+                ],
+                [
+                    'project_category_id' => $categories[$index]->id,
+                    'created_by' => $boss->id,
+                    'reviewer_id' => $boss->id,
+                    'service_type' => ['Tax', 'Accounting', 'Tax'][$index],
+                    'status' => ['in_progress', 'waiting_client', 'completed'][$index],
+                    'priority' => ['high', 'medium', 'urgent'][$index],
+                    'start_date' => now()->subDays(7 - $index)->toDateString(),
+                    'due_date' => now()->addDays(10 + ($index * 7))->toDateString(),
+                    'description' => 'Client service project with tracked tasks, progress, and risks.',
+                ]
+            );
 
             $project->staff()->sync([
                 $staff[0]->id => ['role' => 'pic_accounting'],
                 $staff[1]->id => ['role' => 'pic_tax'],
             ]);
 
-            $task = ProjectTask::create([
-                'project_id' => $project->id,
-                'assigned_to' => $employees[$index]->id,
-                'title' => [
-                    'Collect VAT invoices',
-                    'Prepare trial balance',
-                    'Review purchase tax evidence'
-                ][$index],
-                'status' => ['in_progress', 'waiting_client', 'done'][$index],
-                'progress_percent' => [65, 30, 100][$index],
-                'due_date' => now()->addDays(4 + $index)->toDateString(),
-            ]);
+            $taskTitle = [
+                'Collect VAT invoices',
+                'Prepare trial balance',
+                'Review purchase tax evidence'
+            ][$index];
 
-            ProjectProgressUpdate::create([
-                'project_id' => $project->id,
-                'project_task_id' => $task->id,
-                'user_id' => $employees[$index]->id,
-                'progress_percent' => $task->progress_percent,
-                'summary' => 'Initial progress has been recorded for boss monitoring.',
-            ]);
+            $task = ProjectTask::firstOrCreate(
+                [
+                    'project_id' => $project->id,
+                    'title' => $taskTitle,
+                ],
+                [
+                    'assigned_to' => $employees[$index]->id,
+                    'status' => ['in_progress', 'waiting_client', 'completed'][$index],
+                    'progress_percent' => [65, 30, 100][$index],
+                    'due_date' => now()->addDays(4 + $index)->toDateString(),
+                ]
+            );
 
-            if ($index === 0 || $index === 1) {
-                ProjectThreat::create([
+            ProjectProgressUpdate::firstOrCreate(
+                [
                     'project_id' => $project->id,
                     'project_task_id' => $task->id,
                     'user_id' => $employees[$index]->id,
-                    'title' => $index === 0 ? 'Client document is delayed' : 'Bank statement for final week missing',
-                    'severity' => $index === 0 ? 'medium' : 'high',
-                    'status' => 'open',
-                    'description' => 'Follow up needed with client PIC.',
-                    'mitigation_plan' => 'Contact PIC and escalate before due date.',
-                ]);
+                ],
+                [
+                    'progress_percent' => $task->progress_percent,
+                    'summary' => 'Initial progress has been recorded for boss monitoring.',
+                ]
+            );
+
+            if ($index === 0 || $index === 1) {
+                ProjectThreat::firstOrCreate(
+                    [
+                        'project_id' => $project->id,
+                        'title' => $index === 0 ? 'Client document is delayed' : 'Bank statement for final week missing',
+                    ],
+                    [
+                        'project_task_id' => $task->id,
+                        'user_id' => $employees[$index]->id,
+                        'severity' => $index === 0 ? 'medium' : 'high',
+                        'status' => 'open',
+                        'description' => 'Follow up needed with client PIC.',
+                        'mitigation_plan' => 'Contact PIC and escalate before due date.',
+                    ]
+                );
             }
         });
     }

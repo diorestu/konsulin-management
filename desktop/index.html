@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konsulin Timer</title>
+    <style>
+        :root {
+            --bg: #0b192c;
+            --surface: #1e3e62;
+            --border: #2b527e;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --emerald: #10b981;
+            --emerald-text: #34d399;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Instrument Sans', sans-serif;
+            background: transparent;
+            color: var(--text);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            padding: 4px;
+        }
+
+        .floating-pill {
+            background: var(--bg);
+            border: 1px solid var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        /* Draggable Titlebar Header */
+        .window-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: #070f1a;
+            border-bottom: 1px solid #13273e;
+            -webkit-app-region: drag;
+            height: 28px;
+        }
+
+        .window-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .window-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            -webkit-app-region: no-drag;
+        }
+
+        .win-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            transition: all 0.12s ease;
+        }
+        .win-btn:hover {
+            background: #1e3e62;
+            color: #ffffff;
+        }
+        .win-btn.close:hover {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        /* Main Body Area */
+        .window-body {
+            padding: 10px 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            -webkit-app-region: no-drag;
+        }
+
+        /* Active State Card */
+        .task-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .task-badge-key {
+            background: var(--surface);
+            color: #93c5fd;
+            font-family: ui-monospace, monospace;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .task-client {
+            font-size: 11px;
+            color: var(--muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .live-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--emerald);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse 1.8s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .live-text {
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--emerald-text);
+            letter-spacing: 0.05em;
+        }
+
+        .task-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #ffffff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-bottom: 6px;
+        }
+
+        .timer-action-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid #142a44;
+            padding-top: 8px;
+            margin-top: 4px;
+        }
+
+        .timer-digits {
+            font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--emerald-text);
+            letter-spacing: 0.04em;
+        }
+
+        .btn-stop {
+            background: var(--danger);
+            border: 1px solid #ef4444;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-stop:hover {
+            background: var(--danger-hover);
+        }
+
+        /* Idle State */
+        .idle-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .idle-label {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .task-select {
+            width: 100%;
+            background: #112338;
+            border: 1px solid var(--surface);
+            color: #ffffff;
+            font-size: 11.5px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .btn-start-idle {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: #ffffff;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .btn-start-idle:hover {
+            background: #2b527e;
+        }
+
+        /* Compact Mode */
+        body.compact-mode .window-header {
+            display: none;
+        }
+        body.compact-mode .floating-pill {
+            border-radius: 8px;
+        }
+        body.compact-mode .window-body {
+            padding: 6px 10px;
+        }
+        body.compact-mode .task-title {
+            display: none;
+        }
+        body.compact-mode .timer-action-row {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+        body.compact-mode .timer-digits {
+            font-size: 16px;
+        }
+        body.compact-mode .btn-stop {
+            padding: 3px 8px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-pill" id="appCard">
+        <!-- Draggable Titlebar -->
+        <div class="window-header">
+            <div class="window-title">
+                <span>Konsulin Always-on-Top</span>
+            </div>
+            <div class="window-controls">
+                <button class="win-btn" id="btnToggleCompact" title="Toggle Compact Pill">⇕</button>
+                <button class="win-btn" id="btnMinimize" title="Minimize">–</button>
+                <button class="win-btn close" id="btnClose" title="Tutup">×</button>
+            </div>
+        </div>
+
+        <div class="window-body">
+            <!-- Active State -->
+            <div id="activeState" style="display: none;">
+                <div class="task-meta-row">
+                    <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                        <span class="task-badge-key" id="taskKey">TSK-0</span>
+                        <span class="task-client" id="clientName">Klien</span>
+                    </div>
+                    <div class="live-status-pill">
+                        <span class="live-dot"></span>
+                        <span class="live-text">LIVE</span>
+                    </div>
+                </div>
+
+                <div class="task-title" id="taskTitle">Memuat task...</div>
+
+                <div class="timer-action-row">
+                    <div class="timer-digits" id="timerDigits">00:00:00</div>
+                    <button class="btn-stop" id="btnStop">Selesai</button>
+                </div>
+            </div>
+
+            <!-- Idle State -->
+            <div id="idleState" style="display: none;">
+                <div class="idle-container">
+                    <div class="idle-label">Pilih task untuk memulai waktu kerja:</div>
+                    <select id="taskPickerSelect" class="task-select">
+                        <option value="">Memuat daftar task...</option>
+                    </select>
+                    <button class="btn-start-idle" id="btnStartWork">Mulai Waktu Kerja</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_HOST = localStorage.getItem('konsulin_api_host') || 'http://localhost:8000';
+        let isCompact = false;
+        let activeData = null;
+        let timerInterval = null;
+
+        function formatSeconds(totalSec) {
+            const hours = Math.floor(totalSec / 3600);
+            const mins = Math.floor((totalSec % 3600) / 60);
+            const secs = totalSec % 60;
+            return [
+                String(hours).padStart(2, '0'),
+                String(mins).padStart(2, '0'),
+                String(secs).padStart(2, '0')
+            ].join(':');
+        }
+
+        async function fetchActive() {
+            try {
+                const res = await fetch(`${API_HOST}/time-logs/active`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.active) {
+                    renderActive(data);
+                } else {
+                    renderIdle();
+                }
+            } catch (err) {
+                console.error('Error connecting to Konsulin server:', err);
+                renderIdle();
+            }
+        }
+
+        function renderActive(data) {
+            activeData = data;
+            document.getElementById('activeState').style.display = 'block';
+            document.getElementById('idleState').style.display = 'none';
+
+            document.getElementById('taskKey').textContent = data.task ? data.task.key : 'TSK';
+            document.getElementById('taskTitle').textContent = data.task ? data.task.title : 'Task';
+            document.getElementById('clientName').textContent = data.client ? data.client.name : 'Internal';
+
+            let elapsed = data.log.elapsed_seconds || 0;
+            document.getElementById('timerDigits').textContent = formatSeconds(elapsed);
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                elapsed++;
+                document.getElementById('timerDigits').textContent = formatSeconds(elapsed);
+            }, 1000);
+        }
+
+        async function renderIdle() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            activeData = null;
+            document.getElementById('activeState').style.display = 'none';
+            document.getElementById('idleState').style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_HOST}/time-logs/my-tasks`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                const select = document.getElementById('taskPickerSelect');
+                select.innerHTML = '';
+                if (data.tasks && data.tasks.length > 0) {
+                    data.tasks.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = `[${t.key}] ${t.title} (${t.client_name})`;
+                        select.appendChild(opt);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Tidak ada task terbuka</option>';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function startTask(taskId) {
+            try {
+                const res = await fetch(`${API_HOST}/time-logs/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ task_id: taskId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    renderActive({
+                        active: true,
+                        log: data.log,
+                        task: data.task,
+                        project: data.project,
+                        client: data.client
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function stopTask() {
+            try {
+                const res = await fetch(`${API_HOST}/time-logs/stop`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    renderIdle();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Window Controls
+        document.getElementById('btnMinimize')?.addEventListener('click', () => {
+            if (window.electronAPI) window.electronAPI.minimize();
+        });
+        document.getElementById('btnClose')?.addEventListener('click', () => {
+            if (window.electronAPI) window.electronAPI.close();
+        });
+        document.getElementById('btnToggleCompact')?.addEventListener('click', () => {
+            isCompact = !isCompact;
+            document.body.classList.toggle('compact-mode', isCompact);
+            if (window.electronAPI) {
+                if (isCompact) {
+                    window.electronAPI.setWindowSize(320, 56);
+                } else {
+                    window.electronAPI.setWindowSize(360, 180);
+                }
+            }
+        });
+
+        document.getElementById('btnStop')?.addEventListener('click', stopTask);
+        document.getElementById('btnStartWork')?.addEventListener('click', () => {
+            const taskId = document.getElementById('taskPickerSelect').value;
+            if (taskId) startTask(taskId);
+        });
+
+        // Deep link listener (e.g. konsulin://track?task_id=123)
+        if (window.electronAPI) {
+            window.electronAPI.onDeepLink((url) => {
+                try {
+                    const parsedUrl = new URL(url);
+                    const taskId = parsedUrl.searchParams.get('task_id');
+                    if (taskId) {
+                        startTask(parseInt(taskId, 10));
+                    }
+                } catch (e) {
+                    console.error('Failed to parse deep link URL:', url, e);
+                }
+            });
+        }
+
+        // Initial load & periodic poll sync with web app
+        fetchActive();
+        setInterval(fetchActive, 10000);
+    </script>
+</body>
+</html>

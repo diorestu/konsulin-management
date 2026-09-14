@@ -1,4 +1,4 @@
-<x-layouts.app :title="'Edit ' . $client->name . ' — Konsulin Manager'">
+<x-layouts.app :title="'Edit ' . $client->name . ' : Konsulin Manager'">
     <div class="topbar">
         <div>
             <div class="flex items-center gap-2 mb-1">
