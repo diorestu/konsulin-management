@@ -54,17 +54,20 @@ class DashboardController extends Controller
                 ->take(6)
                 ->get();
 
-            $todayMinutes = (int) TaskTimeLog::where('user_id', $user->id)
+            $todaySeconds = (int) TaskTimeLog::where('user_id', $user->id)
                 ->whereDate('started_at', Carbon::today())
-                ->sum('duration_minutes');
+                ->sum('duration_seconds');
+            $todayMinutes = (int) round($todaySeconds / 60);
 
-            $weekMinutes = (int) TaskTimeLog::where('user_id', $user->id)
+            $weekSeconds = (int) TaskTimeLog::where('user_id', $user->id)
                 ->where('started_at', '>=', Carbon::now()->startOfWeek())
-                ->sum('duration_minutes');
+                ->sum('duration_seconds');
+            $weekMinutes = (int) round($weekSeconds / 60);
 
             $activeTimeLog = TaskTimeLog::with(['task.project.client'])
                 ->where('user_id', $user->id)
-                ->whereNull('ended_at')
+                ->where('status', 'running')
+                ->whereNull('stopped_at')
                 ->first();
 
             $myThreats = ProjectThreat::with(['project.client', 'user'])

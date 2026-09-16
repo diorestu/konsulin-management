@@ -398,8 +398,8 @@
                                     </div>
                                     <div class="text-[10.5px] text-slate-500 truncate mt-0.5">
                                         {{ \Carbon\Carbon::parse($log->started_at)->format('d M, H:i') }}
-                                        @if($log->ended_at)
-                                            - {{ \Carbon\Carbon::parse($log->ended_at)->format('H:i') }}
+                                        @if($log->stopped_at)
+                                            - {{ \Carbon\Carbon::parse($log->stopped_at)->format('H:i') }}
                                         @endif
                                         · {{ $log->task->project->name ?? 'Proyek' }}
                                     </div>

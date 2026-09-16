@@ -45,6 +45,16 @@ class TaskTimeLog extends Model
             ->whereNull('stopped_at');
     }
 
+    public function getDurationMinutesAttribute(): int
+    {
+        return (int) round(($this->duration_seconds ?? 0) / 60);
+    }
+
+    public function getEndedAtAttribute(): ?Carbon
+    {
+        return $this->stopped_at;
+    }
+
     public function getElapsedSecondsAttribute(): int
     {
         if ($this->stopped_at) {

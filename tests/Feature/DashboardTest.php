@@ -126,6 +126,22 @@ class DashboardTest extends TestCase
             'due_date' => now()->addDays(2)->toDateString(),
         ]);
 
+        \App\Models\TaskTimeLog::create([
+            'project_task_id' => $task->id,
+            'user_id' => $staff->id,
+            'started_at' => now()->subHours(2),
+            'stopped_at' => now()->subHours(1),
+            'duration_seconds' => 3600,
+            'status' => 'completed',
+        ]);
+
+        \App\Models\TaskTimeLog::create([
+            'project_task_id' => $task->id,
+            'user_id' => $staff->id,
+            'started_at' => now()->subMinutes(15),
+            'status' => 'running',
+        ]);
+
         $response = $this->get('/dashboard');
 
         $response->assertOk();
