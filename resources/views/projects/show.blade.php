@@ -91,16 +91,20 @@
                 <span class="text-xs text-slate-500 font-medium">Total Isu</span>
             </div>
             <!-- Micro Status Distribution Chips -->
-            <div class="grid grid-cols-4 gap-1 mb-2">
+            <div class="grid grid-cols-5 gap-1 mb-2">
                 <div class="text-center py-1 rounded bg-emerald-50 border border-emerald-100" title="Done / Selesai">
                     <div class="text-[11px] font-bold text-emerald-800">{{ $project->tasks->where('status', 'completed')->count() }}</div>
                     <div class="text-[9px] uppercase font-bold text-emerald-600">Done</div>
+                </div>
+                <div class="text-center py-1 rounded bg-indigo-50 border border-indigo-100" title="In Review / Kendali Mutu">
+                    <div class="text-[11px] font-bold text-indigo-800">{{ $project->tasks->where('status', 'in_review')->count() }}</div>
+                    <div class="text-[9px] uppercase font-bold text-indigo-600">Review</div>
                 </div>
                 <div class="text-center py-1 rounded bg-blue-50 border border-blue-100" title="In Progress / Berjalan">
                     <div class="text-[11px] font-bold text-blue-800">{{ $project->tasks->where('status', 'in_progress')->count() }}</div>
                     <div class="text-[9px] uppercase font-bold text-blue-600">Active</div>
                 </div>
-                <div class="text-center py-1 rounded bg-amber-50 border border-amber-100" title="Waiting Client / Review">
+                <div class="text-center py-1 rounded bg-amber-50 border border-amber-100" title="Waiting Client / Pending">
                     <div class="text-[11px] font-bold text-amber-800">{{ $project->tasks->where('status', 'waiting_client')->count() }}</div>
                     <div class="text-[9px] uppercase font-bold text-amber-600">Wait</div>
                 </div>
@@ -110,7 +114,7 @@
                 </div>
             </div>
             <div class="text-[11px] text-slate-500 truncate" id="statTasksSubtext">
-                {{ $project->tasks->where('status', 'completed')->count() }} done · {{ $project->tasks->where('status', 'in_progress')->count() }} in progress
+                {{ $project->tasks->where('status', 'completed')->count() }} done · {{ $project->tasks->where('status', 'in_review')->count() }} review · {{ $project->tasks->where('status', 'in_progress')->count() }} in progress
             </div>
         </div>
 
@@ -260,12 +264,13 @@
 
             <!-- 1. JIRA KANBAN BOARD VIEW -->
             <div id="jiraBoardView">
-                <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start;">
+                <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; align-items: start;">
                     @php
                         $columns = [
                             ['status' => 'not_started', 'label' => 'To Do', 'color' => 'slate', 'badge' => 'bg-slate-100 text-slate-700 border-slate-200'],
                             ['status' => 'in_progress', 'label' => 'In Progress', 'color' => 'blue', 'badge' => 'bg-blue-50 text-blue-800 border-blue-200'],
                             ['status' => 'waiting_client', 'label' => 'Waiting Client', 'color' => 'amber', 'badge' => 'bg-amber-50 text-amber-800 border-amber-200'],
+                            ['status' => 'in_review', 'label' => 'In Review (QA)', 'color' => 'indigo', 'badge' => 'bg-indigo-50 text-indigo-800 border-indigo-200'],
                             ['status' => 'completed', 'label' => 'Done', 'color' => 'emerald', 'badge' => 'bg-emerald-50 text-emerald-800 border-emerald-200'],
                         ];
                     @endphp
@@ -274,12 +279,12 @@
                         @php
                             $colTasks = $project->tasks->where('status', $col['status']);
                         @endphp
-                        <div class="bg-slate-100/70 border border-slate-200/80 rounded-xl p-3">
+                        <div class="bg-slate-100/70 border border-slate-200/80 rounded-xl p-2.5">
                             <!-- Column Header -->
-                            <div class="flex items-center justify-between mb-3 px-1">
+                            <div class="flex items-center justify-between mb-2.5 px-1">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">{{ $col['label'] }}</span>
-                                    <span class="text-[11px] font-bold px-1.5 py-0.2 rounded-full border {{ $col['badge'] }}" id="col-count-{{ $col['status'] }}">
+                                    <span class="text-[11px] font-bold text-slate-800 uppercase tracking-wider">{{ $col['label'] }}</span>
+                                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full border {{ $col['badge'] }}" id="col-count-{{ $col['status'] }}">
                                         {{ $colTasks->count() }}
                                     </span>
                                 </div>
@@ -288,10 +293,10 @@
                             <!-- Task Cards in this column -->
                             <div class="space-y-2.5 min-h-[140px]" id="kanban-col-{{ $col['status'] }}">
                                 @foreach ($colTasks as $task)
-                                    <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all group task-card-item" id="task-card-{{ $task->id }}" data-task-id="{{ $task->id }}" data-status="{{ $task->status }}">
-                                        <!-- Issue Key & Priority -->
+                                    <div class="bg-white border border-slate-200 rounded-lg p-2.5 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all group task-card-item" id="task-card-{{ $task->id }}" data-task-id="{{ $task->id }}" data-status="{{ $task->status }}">
+                                        <!-- Issue Key, Status Badges & Priority -->
                                         <div class="flex items-center justify-between gap-1 mb-1.5">
-                                            <span class="text-[11px] font-mono font-semibold text-slate-500">
+                                            <span class="text-[10.5px] font-mono font-semibold text-slate-500">
                                                 TSK-{{ $task->id }}
                                             </span>
                                             <div class="flex items-center gap-1">
@@ -300,22 +305,56 @@
                                                         <x-heroicon-s-exclamation-triangle class="w-3.5 h-3.5" />
                                                     </span>
                                                 @endif
-                                                <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 uppercase task-progress-badge">
+                                                @if ($task->status === 'in_review')
+                                                    <span class="text-[9px] font-bold px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                        QA Gate
+                                                    </span>
+                                                @elseif ($task->isRevisionRequested())
+                                                    <span class="text-[9px] font-bold px-1 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200" title="{{ $task->review_notes }}">
+                                                        Revisi
+                                                    </span>
+                                                @elseif ($task->isApproved())
+                                                    <span class="text-[9px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200" title="Diverifikasi oleh {{ $task->reviewer?->name ?? 'Reviewer' }}">
+                                                        Verified
+                                                    </span>
+                                                @endif
+                                                <span class="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 uppercase task-progress-badge">
                                                     {{ $task->progress_percent }}%
                                                 </span>
                                             </div>
                                         </div>
 
                                         <!-- Title -->
-                                        <div class="text-xs font-semibold text-slate-900 leading-snug mb-2 task-title-text">
+                                        <div class="text-xs font-semibold text-slate-900 leading-snug mb-1.5 task-title-text">
                                             {{ $task->title }}
                                         </div>
 
-                                        @if ($task->notes)
+                                        @if ($task->isRevisionRequested() && $task->review_notes)
+                                            <div class="p-1.5 rounded bg-rose-50 border border-rose-200/80 text-[10.5px] text-rose-900 mb-2 leading-relaxed">
+                                                <div class="font-bold text-rose-800 text-[9.5px] flex items-center gap-1 mb-0.5">
+                                                    <x-heroicon-s-exclamation-triangle class="w-3 h-3 text-rose-600" />
+                                                    <span>Catatan Revisi:</span>
+                                                </div>
+                                                <div class="line-clamp-2">{{ $task->review_notes }}</div>
+                                            </div>
+                                        @elseif ($task->notes)
                                             <p class="text-[11px] text-slate-500 line-clamp-2 mb-2 task-notes-text">
                                                 {{ $task->notes }}
                                             </p>
                                         @endif
+
+                                        <!-- Quality Checklist Button Indicator -->
+                                        <div class="mb-1.5 flex items-center justify-between gap-1">
+                                            <button
+                                                type="button"
+                                                onclick="openQualityGateModal({{ $task->id }})"
+                                                class="inline-flex items-center gap-1 text-[10px] font-medium text-slate-700 hover:text-indigo-700 bg-slate-50 hover:bg-indigo-50/60 px-1.5 py-0.5 rounded border border-slate-200 transition cursor-pointer"
+                                                title="Buka Quality Gate & Checklist Kertas Kerja"
+                                            >
+                                                <x-heroicon-o-clipboard-document-check class="w-3.5 h-3.5 text-indigo-600" />
+                                                <span>{{ $task->checklists->where('is_checked', true)->count() }}/{{ $task->checklists->count() }} QC</span>
+                                            </button>
+                                        </div>
 
                                         <!-- Progress Bar -->
                                         <div class="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden">
@@ -328,7 +367,7 @@
                                                 <div class="w-5 h-5 rounded-full bg-[#1e3e62] text-white text-[9px] font-bold flex items-center justify-center shrink-0">
                                                     {{ substr($task->assignee?->name ?? 'U', 0, 1) }}
                                                 </div>
-                                                <span class="truncate max-w-[80px]" title="{{ $task->assignee?->name ?? 'Unassigned' }}">
+                                                <span class="truncate max-w-[70px]" title="{{ $task->assignee?->name ?? 'Unassigned' }}">
                                                     {{ $task->assignee?->name ?? 'Unassigned' }}
                                                 </span>
                                             </div>
@@ -343,19 +382,48 @@
                                         <div class="mt-2 pt-1.5 border-t border-dashed border-slate-100 flex items-center justify-between gap-1">
                                             @php
                                                 $canEditThisTask = !auth()->check() || !auth()->user()->isStaff() || (int)$task->assigned_to === (int)auth()->id();
+                                                $isReviewerOrAdmin = auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isReviewer());
                                             @endphp
-                                            @if(auth()->check() && auth()->user()->isStaff() && (int)$task->assigned_to === (int)auth()->id())
-                                                <button
-                                                    type="button"
-                                                    data-task-timer-btn="{{ $task->id }}"
-                                                    onclick="window.KonsulinTimer.start({{ $task->id }})"
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer shrink-0"
-                                                    title="Mulai Waktu Kerja"
-                                                >
-                                                    <x-heroicon-o-play class="w-3 h-3 text-slate-500" />
-                                                    <span>Mulai</span>
-                                                </button>
-                                            @endif
+
+                                            <div class="flex items-center gap-1">
+                                                @if(auth()->check() && auth()->user()->isStaff() && (int)$task->assigned_to === (int)auth()->id())
+                                                    <button
+                                                        type="button"
+                                                        data-task-timer-btn="{{ $task->id }}"
+                                                        onclick="window.KonsulinTimer.start({{ $task->id }})"
+                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer shrink-0"
+                                                        title="Mulai Waktu Kerja"
+                                                    >
+                                                        <x-heroicon-o-play class="w-3 h-3 text-slate-500" />
+                                                        <span>Mulai</span>
+                                                    </button>
+
+                                                    @if($task->status === 'in_progress')
+                                                        <button
+                                                            type="button"
+                                                            onclick="submitTaskForReview({{ $task->id }})"
+                                                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition cursor-pointer shrink-0"
+                                                            title="Ajukan tugas ini ke Reviewer"
+                                                        >
+                                                            <x-heroicon-o-arrow-up-tray class="w-3 h-3" />
+                                                            <span>Review</span>
+                                                        </button>
+                                                    @endif
+                                                @endif
+
+                                                @if($isReviewerOrAdmin)
+                                                    <button
+                                                        type="button"
+                                                        onclick="openQualityGateModal({{ $task->id }})"
+                                                        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition cursor-pointer shrink-0"
+                                                        title="Buka Lembar Verifikasi Quality Gate"
+                                                    >
+                                                        <x-heroicon-o-shield-check class="w-3 h-3" />
+                                                        <span>QC</span>
+                                                    </button>
+                                                @endif
+                                            </div>
+
                                             <form method="POST" action="{{ route('projects.tasks.update-status', [$project, $task]) }}" class="inline-flex gap-1 m-0">
                                                 @csrf
                                                 @method('PATCH')
@@ -364,15 +432,16 @@
                                                     @if(!$canEditThisTask)
                                                         disabled
                                                         title="Hanya staff yang ditugaskan yang dapat memperbarui tugas ini"
-                                                        class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-100 border border-slate-200 rounded text-slate-400 cursor-not-allowed font-medium task-status-select"
+                                                        class="text-[10px] py-0.5 px-1 h-6 bg-slate-100 border border-slate-200 rounded text-slate-400 cursor-not-allowed font-medium task-status-select"
                                                     @else
                                                         onchange="changeTaskStatus(this, '{{ route('projects.tasks.update-status', [$project, $task]) }}', {{ $task->id }})"
-                                                        class="text-[10px] py-0.5 px-1.5 h-6 bg-slate-50 border border-slate-200 rounded text-slate-700 cursor-pointer font-medium task-status-select"
+                                                        class="text-[10px] py-0.5 px-1 h-6 bg-slate-50 border border-slate-200 rounded text-slate-700 cursor-pointer font-medium task-status-select"
                                                     @endif
                                                 >
                                                     <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>To Do</option>
                                                     <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>In Progress</option>
                                                     <option value="waiting_client" {{ $task->status === 'waiting_client' ? 'selected' : '' }}>Waiting</option>
+                                                    <option value="in_review" {{ $task->status === 'in_review' ? 'selected' : '' }}>In Review</option>
                                                     <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>Done</option>
                                                 </select>
                                             </form>
@@ -413,6 +482,18 @@
                                             @if ($task->notes)
                                                 <div class="text-xs text-slate-500">{{ $task->notes }}</div>
                                             @endif
+                                            <div class="flex items-center gap-1.5 mt-1">
+                                                @if ($task->status === 'in_review')
+                                                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">QA Gate</span>
+                                                @elseif ($task->isRevisionRequested())
+                                                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200" title="{{ $task->review_notes }}">Revisi</span>
+                                                @elseif ($task->isApproved())
+                                                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Verified</span>
+                                                @endif
+                                                <button type="button" onclick="openQualityGateModal({{ $task->id }})" class="text-[10px] font-medium text-slate-600 hover:text-indigo-700 bg-slate-100 hover:bg-indigo-50 px-1.5 py-0.2 rounded border border-slate-200 cursor-pointer">
+                                                    {{ $task->checklists->where('is_checked', true)->count() }}/{{ $task->checklists->count() }} QC
+                                                </button>
+                                            </div>
                                         </td>
                                         <td>{{ $task->assignee?->name ?? 'Unassigned' }}</td>
                                         <td><span class="label task-table-status-label">{{ str_replace('_', ' ', $task->status) }}</span></td>
@@ -421,20 +502,29 @@
                                         </td>
                                         <td>{{ $task->due_date?->format('d M Y') ?? '-' }}</td>
                                         <td>
-                                            @if(auth()->check() && auth()->user()->isStaff() && (int)$task->assigned_to === (int)auth()->id())
+                                            <div class="flex items-center gap-1">
                                                 <button
                                                     type="button"
-                                                    data-task-timer-btn="{{ $task->id }}"
-                                                    onclick="window.KonsulinTimer.start({{ $task->id }})"
-                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
-                                                    title="Mulai Waktu Kerja"
+                                                    onclick="openQualityGateModal({{ $task->id }})"
+                                                    class="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer"
+                                                    title="Buka Quality Gate"
                                                 >
-                                                    <x-heroicon-o-play class="w-3 h-3 text-slate-500" />
-                                                    <span>Mulai</span>
+                                                    <x-heroicon-o-shield-check class="w-3 h-3 text-indigo-600" />
+                                                    <span>QC</span>
                                                 </button>
-                                            @else
-                                                <span class="text-xs text-slate-400">-</span>
-                                            @endif
+                                                @if(auth()->check() && auth()->user()->isStaff() && (int)$task->assigned_to === (int)auth()->id())
+                                                    <button
+                                                        type="button"
+                                                        data-task-timer-btn="{{ $task->id }}"
+                                                        onclick="window.KonsulinTimer.start({{ $task->id }})"
+                                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                                                        title="Mulai Waktu Kerja"
+                                                    >
+                                                        <x-heroicon-o-play class="w-3 h-3 text-slate-500" />
+                                                        <span>Mulai</span>
+                                                    </button>
+                                                @endif
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty
@@ -659,7 +749,7 @@
                 </label>
                 <label>Status
                     <select name="status">
-                        @foreach (['not_started', 'in_progress', 'waiting_client', 'completed'] as $status)
+                        @foreach (['not_started', 'in_progress', 'waiting_client', 'in_review', 'completed'] as $status)
                             <option value="{{ $status }}">{{ str_replace('_', ' ', $status) }}</option>
                         @endforeach
                     </select>
@@ -693,48 +783,42 @@
                         @endforeach
                     </select>
                 </label>
-                <label>Employee
-                    <select name="user_id" required>
-                        @foreach ($employees as $employee)
-                            <option value="{{ $employee->id }}" {{ auth()->id() === $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
-                        @endforeach
-                    </select>
+                <label>Progress %
+                    <input type="number" name="progress_percent" min="0" max="100" value="{{ $project->progressPercent() }}" required>
                 </label>
             </div>
-            <div class="form-grid">
-                <label>Progress % <input type="number" name="progress_percent" min="0" max="100" required placeholder="Contoh: 75"></label>
-                <label>Attachment path <input name="attachment_path" placeholder="progress/document.pdf"></label>
-            </div>
-            <label>Summary <textarea name="summary" required placeholder="Uraikan hasil kerja dan kemajuan yang dicapai..."></textarea></label>
+            <label>Summary / Notes <textarea name="summary" required placeholder="Jelaskan progres hari ini..."></textarea></label>
             <div class="modal-actions">
                 <button type="button" class="button secondary" onclick="document.getElementById('progressModal').close()">Cancel</button>
-                <button class="button" type="submit">Submit Progress</button>
+                <button class="button" type="submit">Post Update</button>
             </div>
         </form>
     </dialog>
 
     <dialog id="threatModal">
         <div class="modal-head">
-            <h2>Log Operational Threat / Risk</h2>
+            <h2>Add Threat / Blocker</h2>
             <button class="icon-button" type="button" onclick="document.getElementById('threatModal').close()">&times;</button>
         </div>
         <form method="POST" action="{{ route('projects.threats.store', $project) }}" class="modal-body" id="ajaxThreatForm">
             @csrf
-            <label>Title <input name="title" required placeholder="Contoh: Klien belum menyerahkan dokumen"></label>
+            <label>Title <input name="title" required placeholder="Contoh: Dokumen rekening koran belum dikirim"></label>
             <div class="form-grid">
-                <label>Task
+                <label>Related Task
                     <select name="project_task_id" class="task-options-select">
-                        <option value="">Project threat</option>
+                        <option value="">None (Project Level)</option>
                         @foreach ($project->tasks as $task)
                             <option value="{{ $task->id }}">{{ $task->title }}</option>
                         @endforeach
                     </select>
                 </label>
-                <label>Employee
-                    <select name="user_id" required>
-                        @foreach ($employees as $employee)
-                            <option value="{{ $employee->id }}" {{ auth()->id() === $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
-                        @endforeach
+                <label>Risk Category
+                    <select name="category">
+                        <option value="Client Dependency">Client Dependency</option>
+                        <option value="Tax Compliance">Tax Compliance</option>
+                        <option value="Resource / PIC">Resource / PIC</option>
+                        <option value="Technical / System">Technical / System</option>
+                        <option value="Other">Other</option>
                     </select>
                 </label>
             </div>
@@ -761,6 +845,33 @@
                 <button class="button danger" type="submit">Save Threat</button>
             </div>
         </form>
+    </dialog>
+
+    <!-- Quality Gate & Workpaper Checklist Modal -->
+    <dialog id="taskReviewModal" class="rounded-2xl p-0 border border-slate-200 shadow-2xl backdrop:bg-slate-900/50 w-full max-w-2xl overflow-hidden m-auto">
+        <div class="bg-[#0B192C] px-6 py-4 text-white flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+                    <x-heroicon-o-shield-check class="w-5 h-5 text-indigo-300" />
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+                        <span>Quality Gate & Verifikasi Output</span>
+                        <span id="qgModalTaskKey" class="text-[11px] font-mono px-2 py-0.2 rounded bg-white/15 text-slate-200">TSK</span>
+                    </h2>
+                    <p class="text-[11px] text-slate-300" id="qgModalSubtitle">Pemeriksaan kertas kerja & kepatuhan sebelum output disetujui.</p>
+                </div>
+            </div>
+            <button class="text-slate-300 hover:text-white text-xl font-bold p-1 cursor-pointer" type="button" onclick="document.getElementById('taskReviewModal').close()">&times;</button>
+        </div>
+
+        <div class="p-6 max-h-[80vh] overflow-y-auto space-y-4" id="qgModalContent">
+            <!-- Dynamic Content loaded via JS -->
+            <div class="py-12 text-center text-slate-400">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                <p class="mt-2 text-xs font-medium">Memuat data kendali mutu...</p>
+            </div>
+        </div>
     </dialog>
 
     <script>
@@ -794,7 +905,7 @@
         }
 
         function updateKanbanColumnStates() {
-            ['not_started', 'in_progress', 'waiting_client', 'completed'].forEach(status => {
+            ['not_started', 'in_progress', 'waiting_client', 'in_review', 'completed'].forEach(status => {
                 const colContainer = document.getElementById(`kanban-col-${status}`);
                 const countBadge = document.getElementById(`col-count-${status}`);
                 const emptyPlaceholder = document.getElementById(`empty-col-${status}`);
@@ -807,6 +918,349 @@
                 }
             });
         }
+
+        window.openQualityGateModal = function(taskId) {
+            const modal = document.getElementById('taskReviewModal');
+            const content = document.getElementById('qgModalContent');
+            const keyEl = document.getElementById('qgModalTaskKey');
+            if (keyEl) keyEl.textContent = `TSK-${taskId}`;
+
+            content.innerHTML = `
+                <div class="py-12 text-center text-slate-400">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                    <p class="mt-2 text-xs font-medium">Memuat data kendali mutu...</p>
+                </div>
+            `;
+            modal.showModal();
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch(`/projects/{{ $project->id }}/tasks/${taskId}/review-data`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(async res => {
+                if (!res.ok) throw new Error('Gagal memuat data review task.');
+                return res.json();
+            })
+            .then(data => {
+                renderQualityGateModal(data, taskId);
+            })
+            .catch(err => {
+                content.innerHTML = `
+                    <div class="p-6 text-center text-rose-600 bg-rose-50 rounded-xl border border-rose-200">
+                        <p class="text-xs font-semibold">${escapeHtml(err.message)}</p>
+                    </div>
+                `;
+            });
+        };
+
+        function renderQualityGateModal(data, taskId) {
+            const content = document.getElementById('qgModalContent');
+            const t = data.task;
+            const u = data.user;
+
+            let checklistsHtml = '';
+            if (t.checklists && t.checklists.length > 0) {
+                checklistsHtml = t.checklists.map(c => `
+                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border ${c.is_checked ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-200 bg-white hover:bg-slate-50'} transition cursor-pointer">
+                        <input
+                            type="checkbox"
+                            ${c.is_checked ? 'checked' : ''}
+                            onchange="toggleQcItem(${taskId}, ${c.id}, this)"
+                            class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                        >
+                        <div class="flex-1 text-xs">
+                            <div class="${c.is_checked ? 'text-slate-600 line-through' : 'text-slate-900 font-medium'} leading-snug">
+                                ${escapeHtml(c.title)}
+                            </div>
+                            ${c.checked_by_name ? `
+                                <div class="text-[10.5px] text-slate-400 mt-0.5">
+                                    Diverifikasi oleh ${escapeHtml(c.checked_by_name)} · ${escapeHtml(c.checked_at || '')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </label>
+                `).join('');
+            } else {
+                checklistsHtml = '<div class="text-xs text-slate-400 p-3 bg-slate-50 rounded-lg text-center">Belum ada item checklist.</div>';
+            }
+
+            let historyHtml = '';
+            if (t.reviews_history && t.reviews_history.length > 0) {
+                historyHtml = t.reviews_history.map(r => `
+                    <div class="p-2.5 rounded-lg border border-slate-200 bg-white text-xs">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-semibold text-slate-900">${escapeHtml(r.reviewer_name)}</span>
+                            <span class="px-1.5 py-0.2 rounded text-[10px] font-bold ${r.action === 'approved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}">
+                                ${escapeHtml(r.action_label)}
+                            </span>
+                        </div>
+                        ${r.notes ? `<div class="text-slate-600 text-[11px] mt-1 bg-slate-50 p-2 rounded">${escapeHtml(r.notes)}</div>` : ''}
+                        <div class="text-[10px] text-slate-400 mt-1 text-right">${escapeHtml(r.created_at)}</div>
+                    </div>
+                `).join('');
+            }
+
+            content.innerHTML = `
+                <!-- Task Overview -->
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                    <div>
+                        <div class="text-xs text-slate-500 font-mono">TSK-${t.id} · ${escapeHtml(t.assignee_name)}</div>
+                        <div class="text-sm font-bold text-slate-900 mt-0.5">${escapeHtml(t.title)}</div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span class="inline-flex px-2 py-0.5 rounded text-[11px] font-bold ${
+                            t.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
+                            t.status === 'in_review' ? 'bg-indigo-100 text-indigo-800' :
+                            t.review_status === 'revision_requested' ? 'bg-rose-100 text-rose-800' :
+                            'bg-blue-100 text-blue-800'
+                        }">
+                            ${escapeHtml(t.status.replace('_', ' ').toUpperCase())}
+                        </span>
+                        <div class="text-[11px] text-slate-500 mt-0.5">Tenggat: ${escapeHtml(t.due_date)}</div>
+                    </div>
+                </div>
+
+                ${t.review_notes && t.review_status === 'revision_requested' ? `
+                    <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 leading-relaxed">
+                        <div class="font-bold text-rose-800 mb-1 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-rose-600"></span>
+                            <span>Catatan Perbaikan Terakhir dari Reviewer:</span>
+                        </div>
+                        <div class="pl-3.5 font-medium">${escapeHtml(t.review_notes)}</div>
+                    </div>
+                ` : ''}
+
+                <!-- Quality Checklist Section -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-900 uppercase tracking-wider">Kertas Kerja & Checklist Mutu</span>
+                            <span id="qgProgressCounter" class="px-2 py-0.5 rounded text-[10.5px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 font-mono">
+                                ${t.checklists_summary.completed} / ${t.checklists_summary.total} Selesai
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5" id="qgChecklistsList">
+                        ${checklistsHtml}
+                    </div>
+
+                    <!-- Add Checklist Item -->
+                    <div class="mt-2.5 flex items-center gap-2">
+                        <input
+                            type="text"
+                            id="qgNewItemInput"
+                            placeholder="Tambah item validasi kertas kerja..."
+                            class="flex-1 text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                        <button
+                            type="button"
+                            onclick="addNewQcItem(${taskId})"
+                            class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition cursor-pointer shrink-0"
+                        >
+                            + Tambah
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Review History -->
+                ${historyHtml ? `
+                    <div class="pt-2 border-t border-slate-100">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Riwayat Review & Keputusan</span>
+                        <div class="space-y-2">
+                            ${historyHtml}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Action Gate Form -->
+                <div class="pt-3 border-t border-slate-200">
+                    ${u.can_review ? `
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-800">Catatan Reviewer / Rekomendasi:</label>
+                            <textarea
+                                id="qgReviewNotes"
+                                rows="2"
+                                placeholder="Masukkan catatan hasil pemeriksaan (wajib diisi bila meminta revisi)..."
+                                class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            ></textarea>
+                            <div class="flex items-center justify-between gap-2 pt-1">
+                                <button
+                                    type="button"
+                                    onclick="executeReviewAction(${taskId}, 'revision_requested')"
+                                    class="px-3.5 py-2 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition cursor-pointer flex items-center gap-1.5"
+                                >
+                                    <span>Minta Revisi Staf</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="executeReviewAction(${taskId}, 'approved')"
+                                    class="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition cursor-pointer flex items-center gap-1.5"
+                                >
+                                    <span>Setujui (Approve & Selesai)</span>
+                                </button>
+                            </div>
+                        </div>
+                    ` : (t.status !== 'in_review' && t.status !== 'completed' ? `
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs text-slate-500">Tugas siap diverifikasi oleh Reviewer?</span>
+                            <button
+                                type="button"
+                                onclick="submitTaskForReview(${taskId})"
+                                class="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition cursor-pointer"
+                            >
+                                Ajukan ke Reviewer
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="p-2.5 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-medium text-center">
+                            Tugas saat ini sedang dalam antrean verifikasi oleh akun Reviewer / Admin.
+                        </div>
+                    `)}
+                </div>
+            `;
+        }
+
+        window.toggleQcItem = function(taskId, checklistId, checkboxEl) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            checkboxEl.disabled = true;
+
+            fetch(`/projects/{{ $project->id }}/tasks/${taskId}/checklists/${checklistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(async res => {
+                if (!res.ok) throw new Error('Gagal memperbarui status checklist.');
+                return res.json();
+            })
+            .then(data => {
+                const counter = document.getElementById('qgProgressCounter');
+                if (counter) counter.textContent = `${data.completed_count} / ${data.total_count} Selesai`;
+
+                // Update on Kanban card
+                const card = document.getElementById(`task-card-${taskId}`);
+                if (card) {
+                    const pill = card.querySelector('button[title*="Quality Gate"] span');
+                    if (pill) pill.textContent = `${data.completed_count}/${data.total_count} QC`;
+                }
+            })
+            .catch(err => {
+                checkboxEl.checked = !checkboxEl.checked;
+                window.toast?.error(err.message);
+            })
+            .finally(() => {
+                checkboxEl.disabled = false;
+            });
+        };
+
+        window.addNewQcItem = function(taskId) {
+            const input = document.getElementById('qgNewItemInput');
+            const title = input?.value?.trim();
+            if (!title) return;
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            input.disabled = true;
+
+            fetch(`/projects/{{ $project->id }}/tasks/${taskId}/checklists`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ title: title })
+            })
+            .then(async res => {
+                if (!res.ok) throw new Error('Gagal menambahkan item checklist.');
+                return res.json();
+            })
+            .then(data => {
+                input.value = '';
+                openQualityGateModal(taskId); // refresh modal
+                window.toast?.success(data.message);
+            })
+            .catch(err => {
+                window.toast?.error(err.message);
+            })
+            .finally(() => {
+                if (input) input.disabled = false;
+            });
+        };
+
+        window.executeReviewAction = function(taskId, action) {
+            const notesEl = document.getElementById('qgReviewNotes');
+            const notes = notesEl?.value?.trim();
+
+            if (action === 'revision_requested' && !notes) {
+                window.toast?.error('Catatan revisi wajib diisi agar staf mengetahui aspek yang perlu diperbaiki.');
+                notesEl?.focus();
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch(`/projects/{{ $project->id }}/tasks/${taskId}/review`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ action: action, notes: notes })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Gagal memproses review.');
+                return data;
+            })
+            .then(data => {
+                document.getElementById('taskReviewModal')?.close();
+                window.toast?.success(data.message);
+
+                // Reload or move card in Kanban
+                setTimeout(() => window.location.reload(), 400);
+            })
+            .catch(err => {
+                window.toast?.error(err.message);
+            });
+        };
+
+        window.submitTaskForReview = function(taskId) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch(`/projects/{{ $project->id }}/tasks/${taskId}/submit-review`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Gagal mengajukan review.');
+                return data;
+            })
+            .then(data => {
+                document.getElementById('taskReviewModal')?.close();
+                window.toast?.success(data.message);
+                setTimeout(() => window.location.reload(), 400);
+            })
+            .catch(err => {
+                window.toast?.error(err.message);
+            });
+        };
 
         function changeTaskStatus(selectEl, url, taskId) {
             const newStatus = selectEl.value;

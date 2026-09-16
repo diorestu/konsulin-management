@@ -253,7 +253,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Bima IT', 'email' => 'bima@konsulin.test', 'phone' => '0855555555', 'type' => 'it', 'position' => 'IT Support', 'is_active' => true],
         ])->map(fn (array $employee) => Staff::firstOrCreate(['email' => $employee['email']], $employee));
 
-        $clients->each(function (Client $client, int $index) use ($boss, $employees, $categories, $staff): void {
+        $clients->each(function (Client $client, int $index) use ($boss, $reviewer, $employees, $categories, $staff): void {
             $projectName = [
                 'Monthly Tax Compliance',
                 'Annual Financial Statement',
@@ -296,11 +296,46 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'assigned_to' => $employees[$index]->id,
-                    'status' => ['in_progress', 'waiting_client', 'completed'][$index],
-                    'progress_percent' => [65, 30, 100][$index],
+                    'status' => ['in_review', 'waiting_client', 'completed'][$index],
+                    'review_status' => ['pending', 'none', 'approved'][$index],
+                    'reviewed_by' => $index === 2 ? $reviewer->id : null,
+                    'reviewed_at' => $index === 2 ? now()->subDay() : null,
+                    'progress_percent' => [85, 30, 100][$index],
                     'due_date' => now()->addDays(4 + $index)->toDateString(),
                 ]
             );
+
+            $task->populateDefaultChecklists();
+
+            if ($index === 2) {
+                // Check all items for completed task
+                $task->checklists()->update([
+                    'is_checked' => true,
+                    'checked_by' => $reviewer->id,
+                    'checked_at' => now()->subDay(),
+                ]);
+
+                \App\Models\TaskReview::firstOrCreate(
+                    [
+                        'project_task_id' => $task->id,
+                        'reviewer_id' => $reviewer->id,
+                    ],
+                    [
+                        'action' => 'approved',
+                        'notes' => 'Rekonsiliasi PPN valid, seluruh bukti potong terlampir dan NTPN terkonfirmasi.',
+                    ]
+                );
+            } elseif ($index === 0) {
+                // Check 2 of 4 items for in_review task
+                $firstChecklist = $task->checklists()->first();
+                if ($firstChecklist) {
+                    $firstChecklist->update([
+                        'is_checked' => true,
+                        'checked_by' => $employees[0]->id,
+                        'checked_at' => now()->subHours(2),
+                    ]);
+                }
+            }
 
             ProjectProgressUpdate::firstOrCreate(
                 [

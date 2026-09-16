@@ -126,6 +126,35 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start mb-8">
         <!-- Left Column: Tasks & Projects (Col 7) -->
         <div class="lg:col-span-7 flex flex-col gap-5">
+            @if(isset($revisionTasks) && $revisionTasks->isNotEmpty())
+                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 shadow-xs">
+                    <div class="flex items-center gap-2 text-rose-800 font-bold text-xs mb-1">
+                        <x-heroicon-s-exclamation-triangle class="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>Perhatian: Terdapat {{ $revisionTasks->count() }} tugas yang memerlukan revisi dari Reviewer</span>
+                    </div>
+                    <p class="text-[11px] text-rose-700 leading-relaxed mb-2.5">
+                        Reviewer telah memberikan catatan koreksi. Silakan periksa catatan dan ajukan ulang setelah perbaikan selesai.
+                    </p>
+                    <div class="space-y-2">
+                        @foreach($revisionTasks as $revTask)
+                            <div class="p-2.5 rounded-lg bg-white border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                                <div>
+                                    <div class="font-bold text-slate-900">{{ $revTask->title }}</div>
+                                    <div class="text-[11px] text-slate-500 mt-0.5">{{ $revTask->project->name ?? 'Proyek' }} · {{ $revTask->project->client->name ?? 'Klien' }}</div>
+                                    <div class="text-[11px] text-rose-800 bg-rose-50/70 p-1.5 rounded mt-1 border border-rose-100 italic">
+                                        &ldquo;{{ $revTask->review_notes }}&rdquo;
+                                    </div>
+                                </div>
+                                <a href="{{ route('projects.show', $revTask->project_id) }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition shrink-0">
+                                    <span>Buka Tugas</span>
+                                    <x-heroicon-o-arrow-right class="w-3 h-3" />
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <!-- Panel 1: Daftar Tugas Penugasan Saya -->
             <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2 border-b border-slate-100">
@@ -185,14 +214,18 @@
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-2.5 whitespace-nowrap">
-                                            @if($task->status === 'done')
+                                            @if($task->status === 'completed' || $task->status === 'done')
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Selesai</span>
+                                            @elseif($task->status === 'in_review' || $task->status === 'review')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">In Review</span>
+                                            @elseif($task->isRevisionRequested())
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200" title="{{ $task->review_notes }}">Perlu Revisi</span>
                                             @elseif($task->status === 'in_progress')
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">In Progress</span>
-                                            @elseif($task->status === 'review')
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">Review</span>
+                                            @elseif($task->status === 'waiting_client')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Waiting</span>
                                             @else
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">Todo</span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">To Do</span>
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-2 text-right whitespace-nowrap">
@@ -633,6 +666,50 @@
         <!-- Kolom Kiri: Operasional Proyek & Matriks Pajak (Col-span 7) -->
         <div class="lg:col-span-7 flex flex-col gap-5">
             
+            @if(isset($pendingReviewTasks) && $pendingReviewTasks->isNotEmpty())
+                <!-- Panel 0: Quality Gate & Tugas Menunggu Review -->
+                <section class="panel !p-4 !mb-0 border border-indigo-200 rounded-xl bg-indigo-50/30 shadow-sm" data-animate-children>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2 border-b border-indigo-100">
+                        <div>
+                            <h2 class="!text-sm !font-bold text-slate-900 !mb-0.5 flex items-center gap-2">
+                                <x-heroicon-o-shield-check class="w-4 h-4 text-indigo-600" />
+                                <span>Quality Gate: Tugas Menunggu Review</span>
+                            </h2>
+                            <p class="text-[11px] text-slate-500">Tugas staf yang diajukan untuk verifikasi kertas kerja dan persetujuan output.</p>
+                        </div>
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                            {{ $pendingReviewTasks->count() }} Menunggu QC
+                        </span>
+                    </div>
+
+                    <div class="space-y-2">
+                        @foreach($pendingReviewTasks as $pTask)
+                            <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-xs flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="flex items-center gap-1.5 text-[11px] text-slate-500 mb-0.5">
+                                        <span class="font-mono font-bold text-indigo-700">TSK-{{ $pTask->id }}</span>
+                                        <span>·</span>
+                                        <span>{{ $pTask->project->name ?? 'Proyek' }}</span>
+                                        <span>·</span>
+                                        <span>{{ $pTask->project->client->name ?? 'Klien' }}</span>
+                                    </div>
+                                    <div class="font-semibold text-xs text-slate-900 line-clamp-1">{{ $pTask->title }}</div>
+                                    <div class="text-[11px] text-slate-500 mt-1 flex items-center gap-2">
+                                        <span>Staf: <strong class="text-slate-700">{{ $pTask->assignee?->name ?? 'Unassigned' }}</strong></span>
+                                        <span>·</span>
+                                        <span class="font-mono font-semibold text-indigo-700">{{ $pTask->checklists->where('is_checked', true)->count() }}/{{ $pTask->checklists->count() }} QC Terverifikasi</span>
+                                    </div>
+                                </div>
+                                <a href="{{ route('projects.show', $pTask->project_id) }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shrink-0">
+                                    <span>QC Output</span>
+                                    <x-heroicon-o-arrow-right class="w-3 h-3" />
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
+
             <!-- Panel 1: Proyek Prioritas & Tenggat Terdekat -->
             <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm" data-animate-children>
                 <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">

@@ -83,6 +83,16 @@ class User extends Authenticatable
         return $this->hasMany(TaskTimeLog::class);
     }
 
+    public function reviewedTasks()
+    {
+        return $this->hasMany(ProjectTask::class, 'reviewed_by');
+    }
+
+    public function taskReviews()
+    {
+        return $this->hasMany(TaskReview::class, 'reviewer_id');
+    }
+
     public function activeTimeLog()
     {
         return $this->hasOne(TaskTimeLog::class)

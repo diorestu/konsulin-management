@@ -155,6 +155,9 @@ class ProjectController extends Controller
             'reviewer',
             'staff',
             'tasks.assignee',
+            'tasks.reviewer',
+            'tasks.checklists.checker',
+            'tasks.reviews.reviewer',
             'tasks.threats',
             'progressUpdates.user',
             'progressUpdates.task',
@@ -162,9 +165,14 @@ class ProjectController extends Controller
             'threats.task',
         ]);
 
+        $employees = User::whereIn('role', ['staff', 'employee'])->orderBy('name')->get();
+        if ($employees->isEmpty()) {
+            $employees = User::orderBy('name')->get();
+        }
+
         return view('projects.show', [
             'project' => $project,
-            'employees' => User::where('role', 'employee')->orderBy('name')->get(),
+            'employees' => $employees,
             'staff' => Staff::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -280,13 +288,14 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'assigned_to' => ['nullable', 'exists:users,id'],
-            'status' => ['required', 'string', 'max:50'],
+            'status' => ['required', 'string', 'in:not_started,in_progress,waiting_client,in_review,completed'],
             'progress_percent' => ['required', 'integer', 'min:0', 'max:100'],
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 
         $task = $project->tasks()->create($validated);
+        $task->populateDefaultChecklists();
         $task->load('assignee');
 
         if ($request->wantsJson() || $request->ajax()) {
@@ -323,22 +332,47 @@ class ProjectController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => ['required', 'string', 'in:not_started,in_progress,waiting_client,completed'],
+            'status' => ['required', 'string', 'in:not_started,in_progress,waiting_client,in_review,completed'],
         ]);
 
         $status = $validated['status'];
+
+        // Review Gate: If task is currently in_review, ONLY Reviewer and Admin can approve or complete it
+        if ($task->status === 'in_review' && $status === 'completed' && auth()->check() && auth()->user()->isStaff()) {
+            $msg = 'Hanya Reviewer dan Admin yang berwenang menyetujui tugas yang sedang berada dalam tahap kendali mutu (In Review).';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $msg,
+                ], 403);
+            }
+            abort(403, $msg);
+        }
+
         $progress = $task->progress_percent;
+        $updates = ['status' => $status];
 
         if ($status === 'completed') {
             $progress = 100;
+            $updates['progress_percent'] = 100;
+            if (auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isReviewer())) {
+                $updates['review_status'] = 'approved';
+                $updates['reviewed_by'] = auth()->id();
+                $updates['reviewed_at'] = now();
+            }
+        } elseif ($status === 'in_review') {
+            $task->populateDefaultChecklists();
+            $updates['review_status'] = 'pending';
+            if ($progress < 80) {
+                $progress = 80;
+                $updates['progress_percent'] = 80;
+            }
         } elseif ($progress >= 100 && $status !== 'completed') {
             $progress = 50;
+            $updates['progress_percent'] = 50;
         }
 
-        $task->update([
-            'status' => $status,
-            'progress_percent' => $progress,
-        ]);
+        $task->update($updates);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([

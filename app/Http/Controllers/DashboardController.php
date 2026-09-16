@@ -29,18 +29,20 @@ class DashboardController extends Controller
 
             $assignedProjectIds = $assignedProjects->pluck('id');
 
-            $myTasks = ProjectTask::with(['project.client'])
+            $myTasks = ProjectTask::with(['project.client', 'checklists', 'reviewer'])
                 ->where('assigned_to', $user->id)
-                ->orderByRaw("CASE WHEN status = 'in_progress' THEN 1 WHEN status = 'todo' THEN 2 WHEN status = 'review' THEN 3 ELSE 4 END")
+                ->orderByRaw("CASE WHEN review_status = 'revision_requested' THEN 1 WHEN status = 'in_review' THEN 2 WHEN status = 'in_progress' THEN 3 WHEN status = 'not_started' THEN 4 ELSE 5 END")
                 ->orderBy('due_date', 'asc')
                 ->get();
 
             $totalMyTasks = $myTasks->count();
             $inProgressTasks = $myTasks->where('status', 'in_progress')->count();
-            $todoTasks = $myTasks->where('status', 'todo')->count();
-            $completedTasks = $myTasks->where('status', 'done')->count();
+            $reviewTasksCount = $myTasks->where('status', 'in_review')->count();
+            $todoTasks = $myTasks->whereIn('status', ['not_started', 'todo'])->count();
+            $completedTasks = $myTasks->whereIn('status', ['completed', 'done'])->count();
+            $revisionTasks = $myTasks->where('review_status', 'revision_requested');
 
-            $nearDeadlineTasks = $myTasks->where('status', '!=', 'done')
+            $nearDeadlineTasks = $myTasks->whereNotIn('status', ['completed', 'done'])
                 ->filter(function ($t) {
                     return $t->due_date && Carbon::parse($t->due_date)->lte(Carbon::now()->addDays(7));
                 })->count();
@@ -84,8 +86,10 @@ class DashboardController extends Controller
                 'myTasks' => $myTasks,
                 'totalMyTasks' => $totalMyTasks,
                 'inProgressTasks' => $inProgressTasks,
+                'reviewTasksCount' => $reviewTasksCount,
                 'todoTasks' => $todoTasks,
                 'completedTasks' => $completedTasks,
+                'revisionTasks' => $revisionTasks,
                 'nearDeadlineTasks' => $nearDeadlineTasks,
                 'activeProjectsCount' => $activeProjectsCount,
                 'completedProjectsCount' => $completedProjectsCount,
@@ -111,9 +115,16 @@ class DashboardController extends Controller
             ->where('due_date', '<=', Carbon::now()->addDays(7))
             ->count();
 
-        // Pending review count (projects in review status + clients with pending review approval)
+        // Pending review count and tasks
+        $pendingReviewTasks = ProjectTask::with(['project.client', 'assignee', 'checklists'])
+            ->where('status', 'in_review')
+            ->orderBy('due_date', 'asc')
+            ->take(6)
+            ->get();
+
         $pendingReviewCount = Project::where('status', 'review')->count()
-            + Client::where('review_approval', 'like', '%Pending%')->count();
+            + Client::where('review_approval', 'like', '%Pending%')->count()
+            + $pendingReviewTasks->count();
 
         // Upcoming active projects sorted by due date
         $upcomingProjects = Project::with(['client', 'category', 'accountingStaff', 'taxStaff', 'reviewer', 'tasks'])
@@ -232,6 +243,7 @@ class DashboardController extends Controller
             'openThreats',
             'nearDeadlineCount',
             'pendingReviewCount',
+            'pendingReviewTasks',
             'upcomingProjects',
             'activeThreatsList',
             'staffWorkloads',

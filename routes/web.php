@@ -45,6 +45,11 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/projects/{project}/tasks', [ProjectController::class, 'storeTask'])->name('projects.tasks.store');
     Route::patch('/projects/{project}/tasks/{task}/status', [ProjectController::class, 'updateTaskStatus'])->name('projects.tasks.update-status');
+    Route::post('/projects/{project}/tasks/{task}/submit-review', [\App\Http\Controllers\TaskReviewController::class, 'submitForReview'])->name('projects.tasks.submit-review');
+    Route::post('/projects/{project}/tasks/{task}/review', [\App\Http\Controllers\TaskReviewController::class, 'review'])->name('projects.tasks.review');
+    Route::get('/projects/{project}/tasks/{task}/review-data', [\App\Http\Controllers\TaskReviewController::class, 'getReviewData'])->name('projects.tasks.review-data');
+    Route::patch('/projects/{project}/tasks/{task}/checklists/{checklist}', [\App\Http\Controllers\TaskReviewController::class, 'toggleChecklist'])->name('projects.tasks.checklists.toggle');
+    Route::post('/projects/{project}/tasks/{task}/checklists', [\App\Http\Controllers\TaskReviewController::class, 'addChecklist'])->name('projects.tasks.checklists.store');
     Route::post('/projects/{project}/progress', [ProjectProgressController::class, 'store'])->name('projects.progress.store');
     Route::post('/projects/{project}/threats', [ProjectThreatController::class, 'store'])->name('projects.threats.store');
 
