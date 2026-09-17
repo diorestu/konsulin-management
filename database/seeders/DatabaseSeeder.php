@@ -349,16 +349,62 @@ class DatabaseSeeder extends Seeder
                 ]
             );
 
-            if ($index === 0 || $index === 1) {
+            // P2: Populate and seed realistic Client Input Documents
+            $project->populateDefaultDocuments();
+
+            if ($index === 2) {
+                // Completed project: all documents verified
+                $project->documents()->update([
+                    'status' => 'verified',
+                    'received_at' => now()->subDays(3),
+                    'verified_at' => now()->subDays(2),
+                    'verified_by' => $reviewer->id,
+                    'file_url' => 'https://drive.google.com/drive/folders/konsulin-client-docs-archive',
+                ]);
+            } elseif ($index === 0) {
+                // Tax project: 1 verified, 1 received, 1 pending critical overdue
+                $docs = $project->documents()->get();
+                if ($docs->count() >= 3) {
+                    $docs[0]->update([
+                        'status' => 'verified',
+                        'received_at' => now()->subDays(2),
+                        'verified_at' => now()->subDay(),
+                        'verified_by' => $reviewer->id,
+                        'file_url' => 'https://drive.google.com/file/d/faktur-pajak-keluaran',
+                    ]);
+                    $docs[1]->update([
+                        'status' => 'received',
+                        'received_at' => now()->subDay(),
+                        'file_url' => 'https://drive.google.com/file/d/rekap-pembelian',
+                    ]);
+                    $docs[2]->update([
+                        'status' => 'pending',
+                        'due_date' => now()->subDays(2),
+                    ]);
+                    $docs[2]->escalateToThreat($employees[0], 'Menunggu kiriman e-statement dari direktur keuangan.');
+                }
+            } else {
+                // Accounting project: partial document delivered
+                $docs = $project->documents()->get();
+                if ($docs->count() >= 2) {
+                    $docs[0]->update([
+                        'status' => 'partial',
+                        'received_at' => now()->subDay(),
+                        'notes' => 'Baru rekening koran Mandiri yang dikirim, rekening BCA belum ada.',
+                    ]);
+                }
+            }
+
+            if ($index === 1) {
                 ProjectThreat::firstOrCreate(
                     [
                         'project_id' => $project->id,
-                        'title' => $index === 0 ? 'Client document is delayed' : 'Bank statement for final week missing',
+                        'title' => 'Bank statement for final week missing',
                     ],
                     [
                         'project_task_id' => $task->id,
                         'user_id' => $employees[$index]->id,
-                        'severity' => $index === 0 ? 'medium' : 'high',
+                        'severity' => 'high',
                         'status' => 'open',
                         'description' => 'Follow up needed with client PIC.',
                         'mitigation_plan' => 'Contact PIC and escalate before due date.',

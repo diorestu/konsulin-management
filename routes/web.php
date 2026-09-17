@@ -53,6 +53,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects/{project}/progress', [ProjectProgressController::class, 'store'])->name('projects.progress.store');
     Route::post('/projects/{project}/threats', [ProjectThreatController::class, 'store'])->name('projects.threats.store');
 
+    // Client Input Document Checklist & Vault
+    Route::post('/projects/{project}/documents', [\App\Http\Controllers\ClientDocumentController::class, 'store'])->name('projects.documents.store');
+    Route::patch('/projects/{project}/documents/{document}', [\App\Http\Controllers\ClientDocumentController::class, 'updateStatus'])->name('projects.documents.update-status');
+    Route::post('/projects/{project}/documents/{document}/escalate', [\App\Http\Controllers\ClientDocumentController::class, 'escalateThreat'])->name('projects.documents.escalate');
+    Route::post('/projects/{project}/documents/populate-defaults', [\App\Http\Controllers\ClientDocumentController::class, 'populateDefaults'])->name('projects.documents.populate-defaults');
+    Route::delete('/projects/{project}/documents/{document}', [\App\Http\Controllers\ClientDocumentController::class, 'destroy'])->name('projects.documents.destroy');
+
     // Time Tracking & Desktop Floating Widget Endpoints
     Route::get('/time-logs/active', [\App\Http\Controllers\TaskTimeLogController::class, 'active'])->name('time-logs.active');
     Route::post('/time-logs/start', [\App\Http\Controllers\TaskTimeLogController::class, 'start'])->name('time-logs.start');

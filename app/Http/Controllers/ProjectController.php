@@ -163,6 +163,8 @@ class ProjectController extends Controller
             'progressUpdates.task',
             'threats.user',
             'threats.task',
+            'documents.verifier',
+            'documents.threat',
         ]);
 
         $employees = User::whereIn('role', ['staff', 'employee'])->orderBy('name')->get();

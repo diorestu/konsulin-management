@@ -65,6 +65,11 @@ class Client extends Model
         return $this->hasMany(ClientCompliance::class);
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ClientDocument::class);
+    }
+
     /**
      * Get or instantiate compliance records for all defined periods.
      */

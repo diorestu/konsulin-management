@@ -101,6 +101,80 @@ class Project extends Model
         return $this->hasMany(ProjectThreat::class)->latest();
     }
 
+    public function documents()
+    {
+        return $this->hasMany(ClientDocument::class)->orderBy('is_critical', 'desc')->orderBy('due_date', 'asc');
+    }
+
+    public function populateDefaultDocuments(?string $type = null): int
+    {
+        $resolvedType = $type;
+        if (! $resolvedType) {
+            $service = strtolower($this->service_type ?? '');
+            if (str_contains($service, 'tax') || str_contains($service, 'pajak')) {
+                $resolvedType = 'tax';
+            } elseif (str_contains($service, 'account') || str_contains($service, 'pembukuan') || str_contains($service, 'bookkeeping')) {
+                $resolvedType = 'accounting';
+            } else {
+                $resolvedType = 'advisory';
+            }
+        }
+
+        $templates = match ($resolvedType) {
+            'tax' => [
+                ['title' => 'Rekap Penjualan & Faktur Pajak Keluaran', 'category' => 'Penjualan', 'is_critical' => true, 'days' => 5],
+                ['title' => 'Rekap Pembelian & Faktur Pajak Masukan', 'category' => 'Pembelian', 'is_critical' => true, 'days' => 5],
+                ['title' => 'Rekening Koran Operasional Seluruh Bank', 'category' => 'Bank', 'is_critical' => true, 'days' => 7],
+                ['title' => 'Bukti Potong PPh 21 / 23 / Final', 'category' => 'Bukti Potong', 'is_critical' => false, 'days' => 10],
+                ['title' => 'Daftar Gaji / Payroll & Bukti Bayar BPJS', 'category' => 'Payroll', 'is_critical' => false, 'days' => 10],
+                ['title' => 'Laporan Keuangan Sementara / Trial Balance', 'category' => 'Laporan Keuangan', 'is_critical' => true, 'days' => 7],
+            ],
+            'accounting' => [
+                ['title' => 'Rekening Koran Seluruh Rekening Bank', 'category' => 'Bank', 'is_critical' => true, 'days' => 5],
+                ['title' => 'Bukti Transaksi Kas Keluar & Petty Cash', 'category' => 'Kas & Bank', 'is_critical' => true, 'days' => 5],
+                ['title' => 'Faktur Penjualan & Surat Jalan', 'category' => 'Penjualan', 'is_critical' => true, 'days' => 7],
+                ['title' => 'Faktur & Kuitansi Pembelian Supplier', 'category' => 'Pembelian', 'is_critical' => true, 'days' => 7],
+                ['title' => 'Daftar Aset Tetap & Penyusutan Berjalan', 'category' => 'Aset', 'is_critical' => false, 'days' => 12],
+                ['title' => 'Rekap Saldo Piutang & Hutang Usaha', 'category' => 'Buku Besar', 'is_critical' => false, 'days' => 10],
+            ],
+            default => [
+                ['title' => 'Akta Pendirian & Perubahan Terakhir', 'category' => 'Legalitas', 'is_critical' => true, 'days' => 7],
+                ['title' => 'Surat Keputusan Kemenkumham & NIB', 'category' => 'Legalitas', 'is_critical' => false, 'days' => 7],
+                ['title' => 'Laporan Keuangan Audited Tahun Lalu', 'category' => 'Laporan Keuangan', 'is_critical' => true, 'days' => 7],
+                ['title' => 'Dokumen Kebijakan & Kontrak Utama', 'category' => 'Kontrak', 'is_critical' => false, 'days' => 14],
+                ['title' => 'Konfirmasi Saldo Bank & Pihak Terkait', 'category' => 'Konfirmasi', 'is_critical' => true, 'days' => 10],
+            ],
+        };
+
+        $createdCount = 0;
+        $baseDate = $this->start_date ? \Carbon\Carbon::parse($this->start_date) : \Carbon\Carbon::today();
+
+        foreach ($templates as $item) {
+            $exists = $this->documents()->where('title', $item['title'])->exists();
+            if ($exists) {
+                continue;
+            }
+
+            $dueDate = $baseDate->copy()->addDays($item['days']);
+            if ($this->due_date && $dueDate->greaterThan(\Carbon\Carbon::parse($this->due_date))) {
+                $dueDate = \Carbon\Carbon::parse($this->due_date);
+            }
+
+            $this->documents()->create([
+                'client_id' => $this->client_id,
+                'title' => $item['title'],
+                'category' => $item['category'],
+                'status' => 'pending',
+                'is_critical' => $item['is_critical'],
+                'due_date' => $dueDate,
+            ]);
+
+            $createdCount++;
+        }
+
+        return $createdCount;
+    }
+
     public function progressPercent(): int
     {
         if ($this->tasks->isEmpty()) {

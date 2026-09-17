@@ -237,7 +237,7 @@
                 </div>
             </div>
 
-            <!-- View Switcher Tabs: Board vs List -->
+            <!-- View Switcher Tabs: Board vs List vs Dokumen Klien -->
             <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-2">
                 <div class="flex items-center gap-2">
                     <button
@@ -257,6 +257,23 @@
                     >
                         <x-heroicon-o-queue-list class="w-4 h-4" />
                         <span>List / Table View</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="tabDocsBtn"
+                        onclick="switchProjectView('documents')"
+                        class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                        <x-heroicon-o-document-check class="w-4 h-4" />
+                        <span>Dokumen Masukan (Vault)</span>
+                        @php
+                            $totalDocs = $project->documents->count();
+                            $verifiedDocs = $project->documents->where('status', 'verified')->count();
+                            $criticalPending = $project->documents->where('is_critical', true)->whereIn('status', ['pending', 'partial'])->count();
+                        @endphp
+                        <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full {{ $criticalPending > 0 ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-slate-100 text-slate-700' }}" id="tabDocsBadge">
+                            {{ $verifiedDocs }}/{{ $totalDocs }}
+                        </span>
                     </button>
                 </div>
                 <span class="text-xs text-slate-400">Jira Workflow Engine</span>
@@ -536,6 +553,233 @@
                 </section>
             </div>
 
+            <!-- 3. CLIENT INPUT DOCUMENTS VAULT VIEW -->
+            <div id="jiraDocsView" style="display: none;">
+                <section class="panel">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <h2 style="margin: 0; font-size: 15px;">Checklist Dokumen Masukan Klien</h2>
+                                <span class="label navy text-xs" id="docVaultEngagementBadge">{{ $project->service_type }}</span>
+                            </div>
+                            <p class="muted text-xs">
+                                Kawal kelengkapan dan verifikasi berkas masukan dari klien sebelum penyusunan kertas kerja, rekonsiliasi, dan pelaporan.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onclick="populateDefaultDocs('{{ strtolower($project->service_type ?? 'advisory') }}')"
+                                class="button secondary small inline-flex items-center gap-1.5 text-xs font-semibold"
+                                title="Muat ulang atau lengkapi berkas checklist standar"
+                            >
+                                <x-heroicon-o-arrow-path class="w-3.5 h-3.5 text-slate-500" />
+                                <span>Checklist Standar</span>
+                            </button>
+                            <button
+                                type="button"
+                                onclick="openAddDocumentModal()"
+                                class="button small inline-flex items-center gap-1.5 text-xs font-semibold"
+                            >
+                                <x-heroicon-o-plus class="w-3.5 h-3.5" />
+                                <span>Tambah Dokumen</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Document Vault Progress Summary Bar -->
+                    @php
+                        $docTotal = $project->documents->count();
+                        $docVerified = $project->documents->where('status', 'verified')->count();
+                        $docReceived = $project->documents->whereIn('status', ['received', 'verified'])->count();
+                        $docPending = $project->documents->where('status', 'pending')->count();
+                        $docPartial = $project->documents->where('status', 'partial')->count();
+                        $docCriticalPending = $project->documents->where('is_critical', true)->whereIn('status', ['pending', 'partial'])->count();
+                        $docPercent = $docTotal > 0 ? (int) round(($docReceived / $docTotal) * 100) : 0;
+                    @endphp
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-700">Tingkat Kelengkapan Berkas:</span>
+                                <strong class="text-xs font-mono font-bold text-slate-900" id="docVaultProgressText">{{ $docPercent }}%</strong>
+                                <span class="text-[11px] text-slate-500 font-medium" id="docVaultCountText">({{ $docReceived }} dari {{ $docTotal }} berkas diterima)</span>
+                            </div>
+                            <div>
+                                @if($docCriticalPending > 0)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-bold bg-rose-100 text-rose-800 border border-rose-200" id="docVaultCriticalAlert">
+                                        <x-heroicon-s-exclamation-triangle class="w-3.5 h-3.5" />
+                                        <span>{{ $docCriticalPending }} Berkas Kritis Belum Diterima</span>
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200" id="docVaultCriticalAlert">
+                                        <x-heroicon-o-check-circle class="w-3.5 h-3.5" />
+                                        <span>Semua Berkas Kritis Lengkap</span>
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                            <div class="bg-[#0b192c] h-2 rounded-full transition-all duration-300" id="docVaultProgressBar" style="width: {{ $docPercent }}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Chips -->
+                    <div class="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 text-xs">
+                        <button type="button" onclick="filterDocuments('all')" class="doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-[#0b192c] text-white" data-filter="all">Semua ({{ $docTotal }})</button>
+                        <button type="button" onclick="filterDocuments('critical')" class="doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" data-filter="critical">Kritis ({{ $project->documents->where('is_critical', true)->count() }})</button>
+                        <button type="button" onclick="filterDocuments('pending')" class="doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" data-filter="pending">Belum Diterima ({{ $docPending }})</button>
+                        <button type="button" onclick="filterDocuments('partial')" class="doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" data-filter="partial">Sebagian ({{ $docPartial }})</button>
+                        <button type="button" onclick="filterDocuments('received')" class="doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" data-filter="received">Diterima ({{ $project->documents->where('status', 'received')->count() }})</button>
+                        <button type="button" onclick="filterDocuments('verified')" class="doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" data-filter="verified">Diverifikasi ({{ $docVerified }})</button>
+                    </div>
+
+                    <!-- Documents Table -->
+                    <div class="table-wrap">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider bg-slate-50/50">
+                                    <th class="py-2.5 px-3">Dokumen & Kategori</th>
+                                    <th class="py-2.5 px-3">Tenggat</th>
+                                    <th class="py-2.5 px-3">Status Berkas</th>
+                                    <th class="py-2.5 px-3">Tautan Berkas</th>
+                                    <th class="py-2.5 px-3 text-right">Aksi & Eskalasi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientDocsTableBody" class="divide-y divide-slate-100 text-xs">
+                                @forelse ($project->documents as $doc)
+                                    <tr class="hover:bg-slate-50/60 transition-colors client-doc-row" id="client-doc-row-{{ $doc->id }}" data-status="{{ $doc->status }}" data-critical="{{ $doc->is_critical ? 'true' : 'false' }}">
+                                        <td class="py-3 px-3">
+                                            <div class="flex items-start gap-2">
+                                                @if ($doc->is_critical)
+                                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 shrink-0" title="Dokumen Wajib / Kritis">
+                                                        Kritis
+                                                    </span>
+                                                @else
+                                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 shrink-0">
+                                                        Standar
+                                                    </span>
+                                                @endif
+                                                <div>
+                                                    <div class="font-semibold text-slate-900 flex items-center gap-1.5">
+                                                        <span>{{ $doc->title }}</span>
+                                                        <span class="text-[10px] font-medium px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-100">{{ $doc->category }}</span>
+                                                    </div>
+                                                    @if ($doc->notes)
+                                                        <div class="text-[11px] text-slate-500 mt-0.5">{{ $doc->notes }}</div>
+                                                    @endif
+                                                    @if ($doc->status === 'verified' && $doc->verifier)
+                                                        <div class="text-[10px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
+                                                            <x-heroicon-s-check-circle class="w-3 h-3 text-emerald-600" />
+                                                            <span>Diverifikasi oleh {{ $doc->verifier->name }} ({{ $doc->verified_at?->format('d M H:i') }})</span>
+                                                        </div>
+                                                    @elseif ($doc->status === 'received' && $doc->received_at)
+                                                        <div class="text-[10px] text-blue-700 font-medium mt-1 flex items-center gap-1">
+                                                            <x-heroicon-o-clock class="w-3 h-3 text-blue-600" />
+                                                            <span>Diterima pada {{ $doc->received_at->format('d M H:i') }}</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-3 shrink-0">
+                                            @if ($doc->due_date)
+                                                <div class="font-medium {{ $doc->isOverdue() ? 'text-rose-600 font-bold' : 'text-slate-700' }}">
+                                                    {{ $doc->due_date->format('d M Y') }}
+                                                </div>
+                                                @if ($doc->isOverdue())
+                                                    <span class="text-[10px] font-bold text-rose-600 block">Terlambat</span>
+                                                @endif
+                                            @else
+                                                <span class="text-slate-400">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-3">
+                                            <select
+                                                onchange="updateDocStatus({{ $doc->id }}, this.value)"
+                                                class="text-[11px] font-semibold py-1 px-2 rounded-lg border cursor-pointer doc-status-select-{{ $doc->id }} {{ match($doc->status) {
+                                                    'verified' => 'bg-emerald-50 text-emerald-800 border-emerald-200',
+                                                    'received' => 'bg-blue-50 text-blue-800 border-blue-200',
+                                                    'partial' => 'bg-amber-50 text-amber-800 border-amber-200',
+                                                    default => 'bg-slate-100 text-slate-700 border-slate-200',
+                                                } }}"
+                                            >
+                                                <option value="pending" @selected($doc->status === 'pending')>Belum Diterima</option>
+                                                <option value="partial" @selected($doc->status === 'partial')>Sebagian / Kurang</option>
+                                                <option value="received" @selected($doc->status === 'received')>Diterima</option>
+                                                <option value="verified" @selected($doc->status === 'verified')>Diverifikasi</option>
+                                            </select>
+                                        </td>
+                                        <td class="py-3 px-3">
+                                            @if ($doc->file_url)
+                                                <div class="flex items-center gap-1.5">
+                                                    <a href="{{ $doc->file_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold text-xs truncate max-w-[140px]" title="{{ $doc->file_url }}">
+                                                        <x-heroicon-o-link class="w-3.5 h-3.5 shrink-0" />
+                                                        <span>Buka Berkas</span>
+                                                    </a>
+                                                    <button type="button" onclick="openDocLinkModal({{ $doc->id }}, '{{ addslashes($doc->file_url) }}', '{{ addslashes($doc->notes ?? '') }}')" class="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer" title="Edit Tautan">
+                                                        <x-heroicon-o-pencil-square class="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            @else
+                                                <button
+                                                    type="button"
+                                                    onclick="openDocLinkModal({{ $doc->id }}, '', '{{ addslashes($doc->notes ?? '') }}')"
+                                                    class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-2 py-0.5 rounded border border-slate-200 transition cursor-pointer"
+                                                >
+                                                    <x-heroicon-o-plus class="w-3 h-3" />
+                                                    <span>Tautkan File/Drive</span>
+                                                </button>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-3 text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                @if ($doc->threat && $doc->threat->status === 'open')
+                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200" title="Dokumen telah dilaporkan sebagai ancaman operasional">
+                                                        <x-heroicon-s-shield-exclamation class="w-3.5 h-3.5 text-rose-600" />
+                                                        <span>Threat Aktif</span>
+                                                    </span>
+                                                @elseif (in_array($doc->status, ['pending', 'partial']))
+                                                    <button
+                                                        type="button"
+                                                        onclick="escalateDocThreat({{ $doc->id }}, '{{ addslashes($doc->title) }}')"
+                                                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
+                                                        title="Eskalasi keterlambatan berkas ini ke resiko/threat operasional"
+                                                    >
+                                                        <x-heroicon-o-shield-exclamation class="w-3 h-3 text-rose-600" />
+                                                        <span>Eskalasi Threat</span>
+                                                    </button>
+                                                @endif
+
+                                                @if (!auth()->check() || !auth()->user()->isStaff() || auth()->user()->isAdmin())
+                                                    <button
+                                                        type="button"
+                                                        onclick="deleteClientDoc({{ $doc->id }})"
+                                                        class="text-slate-400 hover:text-rose-600 p-1 transition cursor-pointer"
+                                                        title="Hapus Dokumen"
+                                                    >
+                                                        <x-heroicon-o-trash class="w-3.5 h-3.5" />
+                                                    </button>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr id="emptyClientDocsRow">
+                                        <td colspan="5" class="py-8 text-center text-slate-400">
+                                            <x-heroicon-o-folder-open class="w-8 h-8 mx-auto mb-1 text-slate-300" />
+                                            <p class="text-xs font-medium">Belum ada dokumen masukan yang dicatat.</p>
+                                            <button type="button" onclick="populateDefaultDocs('{{ strtolower($project->service_type ?? 'advisory') }}')" class="mt-2 text-xs font-bold text-blue-600 hover:underline cursor-pointer">
+                                                Muat Checklist Standar Otomatis &rarr;
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
             <!-- Progress Stream / Activity Timeline -->
             <section class="panel mt-4">
                 <div class="flex items-center justify-between mb-3">
@@ -678,6 +922,59 @@
                             </div>
                         </div>
                         <x-heroicon-o-chevron-right class="w-4 h-4 text-slate-400 group-hover:text-rose-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                </div>
+            </section>
+
+            <!-- Client Documents Vault Summary Card -->
+            <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
+                <div class="mb-3 pb-2 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="!text-sm !font-bold text-slate-900 !mb-0 flex items-center gap-1.5">
+                        <x-heroicon-o-document-duplicate class="w-4 h-4 text-indigo-600" />
+                        <span>Berkas Masukan Klien</span>
+                    </h2>
+                    <button type="button" onclick="switchProjectView('documents')" class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 cursor-pointer">
+                        Kelola &rarr;
+                    </button>
+                </div>
+
+                <div class="space-y-2 mb-3">
+                    <div class="flex items-baseline justify-between text-xs">
+                        <span class="text-slate-500 font-medium">Kelengkapan</span>
+                        <span class="font-bold font-mono text-slate-900" id="asideDocPercent">{{ $docPercent }}%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div class="bg-[#0b192c] h-2 rounded-full transition-all duration-300" id="asideDocProgressBar" style="width: {{ $docPercent }}%"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-500">
+                        <span id="asideDocReceivedText">{{ $docReceived }} dari {{ $docTotal }} diterima</span>
+                        <span id="asideDocVerifiedText" class="font-medium text-emerald-700">{{ $docVerified }} terverifikasi</span>
+                    </div>
+                </div>
+
+                @if ($docCriticalPending > 0)
+                    <div class="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs mb-3 text-rose-800 flex items-center gap-2" id="asideDocAlertBox">
+                        <x-heroicon-s-exclamation-triangle class="w-4 h-4 text-rose-600 shrink-0" />
+                        <span class="text-[11px] font-semibold leading-tight" id="asideDocAlertText">{{ $docCriticalPending }} berkas kritis belum diserahkan klien.</span>
+                    </div>
+                @endif
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button
+                        type="button"
+                        onclick="switchProjectView('documents')"
+                        class="button secondary small w-full justify-center !text-xs !py-1.5 cursor-pointer"
+                    >
+                        <x-heroicon-o-list-bullet class="w-3.5 h-3.5" />
+                        <span>Lihat Vault</span>
+                    </button>
+                    <button
+                        type="button"
+                        onclick="openAddDocumentModal()"
+                        class="button small w-full justify-center !text-xs !py-1.5 cursor-pointer"
+                    >
+                        <x-heroicon-o-plus class="w-3.5 h-3.5" />
+                        <span>Tambah</span>
                     </button>
                 </div>
             </section>
@@ -874,23 +1171,159 @@
         </div>
     </dialog>
 
+    <!-- Add Client Document Modal -->
+    <dialog id="addDocumentModal" class="rounded-2xl p-0 border border-slate-200 shadow-2xl backdrop:bg-slate-900/50 w-full max-w-xl overflow-hidden m-auto">
+        <div class="bg-[#0B192C] px-6 py-4 text-white flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+                    <x-heroicon-o-document-plus class="w-5 h-5 text-blue-300" />
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white tracking-wide">Tambah Dokumen Masukan Klien</h2>
+                    <p class="text-[11px] text-slate-300">Catat berkas wajib yang dibutuhkan dari {{ $project->client->name }}.</p>
+                </div>
+            </div>
+            <button class="text-slate-300 hover:text-white text-xl font-bold p-1 cursor-pointer" type="button" onclick="document.getElementById('addDocumentModal').close()">&times;</button>
+        </div>
+
+        <form id="ajaxAddDocForm" method="POST" action="{{ route('projects.documents.store', $project) }}" class="p-6 space-y-4">
+            @csrf
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nama Dokumen <span class="text-rose-600">*</span></label>
+                <input type="text" name="title" required placeholder="Contoh: Rekening Koran Mandiri Jan-Mar 2026" class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Kategori Dokumen <span class="text-rose-600">*</span></label>
+                    <input type="text" name="category" required list="docCategoryList" placeholder="Pilih atau ketik kategori..." class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium">
+                    <datalist id="docCategoryList">
+                        <option value="Bank">
+                        <option value="Penjualan">
+                        <option value="Pembelian">
+                        <option value="Kas & Bank">
+                        <option value="Bukti Potong">
+                        <option value="Payroll">
+                        <option value="Laporan Keuangan">
+                        <option value="Legalitas">
+                        <option value="Kontrak">
+                        <option value="Aset">
+                        <option value="Buku Besar">
+                    </datalist>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tenggat Waktu (Due Date)</label>
+                    <input type="date" name="due_date" value="{{ $project->due_date?->format('Y-m-d') }}" class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tautan Berkas / Folder Google Drive</label>
+                <input type="url" name="file_url" placeholder="https://drive.google.com/..." class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Catatan Tambahan / Spesifikasi Format</label>
+                <textarea name="notes" rows="2" placeholder="Contoh: Format PDF rekening koran lengkap dengan cap / e-statement asli." class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium"></textarea>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="is_critical" value="1" checked class="rounded border-slate-300 text-slate-900 focus:ring-0">
+                    <span class="text-xs font-semibold text-slate-800">Tandai sebagai Berkas Kritis (Bloker Utama)</span>
+                </label>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="button secondary small" onclick="document.getElementById('addDocumentModal').close()">Batal</button>
+                    <button type="submit" class="button small">Simpan Dokumen</button>
+                </div>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Edit File URL & Notes Modal -->
+    <dialog id="documentLinkModal" class="rounded-2xl p-0 border border-slate-200 shadow-2xl backdrop:bg-slate-900/50 w-full max-w-md overflow-hidden m-auto">
+        <div class="bg-[#0B192C] px-6 py-4 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <x-heroicon-o-link class="w-5 h-5 text-blue-300" />
+                <h2 class="text-sm font-bold text-white tracking-wide">Tautkan Berkas Dokumen</h2>
+            </div>
+            <button class="text-slate-300 hover:text-white text-xl font-bold p-1 cursor-pointer" type="button" onclick="document.getElementById('documentLinkModal').close()">&times;</button>
+        </div>
+
+        <form id="ajaxDocLinkForm" class="p-6 space-y-4">
+            <input type="hidden" id="linkModalDocId" value="">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tautan Berkas / Google Drive</label>
+                <input type="url" id="linkModalFileUrl" placeholder="https://drive.google.com/..." class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Catatan Keterangan</label>
+                <textarea id="linkModalNotes" rows="3" placeholder="Catatan berkas, nama pengirim, atau rincian file..." class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium"></textarea>
+            </div>
+
+            <div class="modal-actions !pt-2">
+                <button type="button" class="button secondary small" onclick="document.getElementById('documentLinkModal').close()">Batal</button>
+                <button type="submit" class="button small">Simpan Tautan</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Escalate Document Blocker to Threat Modal -->
+    <dialog id="escalateDocThreatModal" class="rounded-2xl p-0 border border-slate-200 shadow-2xl backdrop:bg-slate-900/50 w-full max-w-md overflow-hidden m-auto">
+        <div class="bg-rose-950 px-6 py-4 text-white flex items-center justify-between border-b border-rose-900">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center border border-rose-500/30">
+                    <x-heroicon-o-shield-exclamation class="w-5 h-5" />
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white tracking-wide">Eskalasi Kendala Dokumen ke Threat</h2>
+                    <p class="text-[10.5px] text-rose-200">Keterlambatan berkas akan dicatat sebagai ancaman operasional proyek.</p>
+                </div>
+            </div>
+            <button class="text-rose-300 hover:text-white text-xl font-bold p-1 cursor-pointer" type="button" onclick="document.getElementById('escalateDocThreatModal').close()">&times;</button>
+        </div>
+
+        <form id="ajaxEscalateDocForm" class="p-6 space-y-4">
+            <input type="hidden" id="escalateDocId" value="">
+            <div class="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                Dokumen: <strong id="escalateDocTitle" class="font-bold block mt-0.5 text-rose-950">-</strong>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Catatan Tambahan Follow-up</label>
+                <textarea id="escalateDocNotes" rows="3" placeholder="Contoh: Sudah dihubungi via WhatsApp 2x belum ada respons. PIC Klien sedang dinas luar." class="w-full text-xs py-2 px-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium"></textarea>
+            </div>
+
+            <div class="modal-actions !pt-2">
+                <button type="button" class="button secondary small" onclick="document.getElementById('escalateDocThreatModal').close()">Batal</button>
+                <button type="submit" class="button danger small">Eskalasi ke Project Threat</button>
+            </div>
+        </form>
+    </dialog>
+
     <script>
         function switchProjectView(view) {
             const board = document.getElementById('jiraBoardView');
             const list = document.getElementById('jiraListView');
+            const docs = document.getElementById('jiraDocsView');
             const boardBtn = document.getElementById('tabBoardBtn');
             const listBtn = document.getElementById('tabListBtn');
+            const docsBtn = document.getElementById('tabDocsBtn');
 
-            if (view === 'board') {
-                board.style.display = 'block';
-                list.style.display = 'none';
-                boardBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0b192c] text-white flex items-center gap-1.5 transition cursor-pointer';
-                listBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer';
-            } else {
-                board.style.display = 'none';
-                list.style.display = 'block';
-                listBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0b192c] text-white flex items-center gap-1.5 transition cursor-pointer';
-                boardBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer';
+            const activeClass = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0b192c] text-white flex items-center gap-1.5 transition cursor-pointer';
+            const inactiveClass = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer';
+
+            if (board) board.style.display = (view === 'board') ? 'block' : 'none';
+            if (list) list.style.display = (view === 'list') ? 'block' : 'none';
+            if (docs) docs.style.display = (view === 'documents') ? 'block' : 'none';
+
+            if (boardBtn) boardBtn.className = (view === 'board') ? activeClass : inactiveClass;
+            if (listBtn) listBtn.className = (view === 'list') ? activeClass : inactiveClass;
+            if (docsBtn) docsBtn.className = (view === 'documents') ? activeClass : inactiveClass;
+
+            if (view === 'documents' && docs) {
+                docs.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 
@@ -902,6 +1335,222 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        function openAddDocumentModal() {
+            const modal = document.getElementById('addDocumentModal');
+            if (modal) modal.showModal();
+        }
+
+        function openDocLinkModal(docId, currentUrl, currentNotes) {
+            document.getElementById('linkModalDocId').value = docId;
+            document.getElementById('linkModalFileUrl').value = currentUrl || '';
+            document.getElementById('linkModalNotes').value = currentNotes || '';
+            document.getElementById('documentLinkModal').showModal();
+        }
+
+        function escalateDocThreat(docId, docTitle) {
+            document.getElementById('escalateDocId').value = docId;
+            document.getElementById('escalateDocTitle').textContent = docTitle;
+            document.getElementById('escalateDocNotes').value = '';
+            document.getElementById('escalateDocThreatModal').showModal();
+        }
+
+        function filterDocuments(filter) {
+            const rows = document.querySelectorAll('.client-doc-row');
+            const buttons = document.querySelectorAll('.doc-filter-btn');
+
+            buttons.forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.className = 'doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-[#0b192c] text-white';
+                } else {
+                    btn.className = 'doc-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
+                }
+            });
+
+            rows.forEach(row => {
+                if (filter === 'all') {
+                    row.style.display = '';
+                } else if (filter === 'critical') {
+                    row.style.display = (row.dataset.critical === 'true') ? '' : 'none';
+                } else {
+                    row.style.display = (row.dataset.status === filter) ? '' : 'none';
+                }
+            });
+        }
+
+        function updateDocSummaryUI(summary) {
+            if (!summary) return;
+            const progressText = document.getElementById('docVaultProgressText');
+            const countText = document.getElementById('docVaultCountText');
+            const progressBar = document.getElementById('docVaultProgressBar');
+            const criticalAlert = document.getElementById('docVaultCriticalAlert');
+            const tabBadge = document.getElementById('tabDocsBadge');
+
+            const asidePercent = document.getElementById('asideDocPercent');
+            const asideProgressBar = document.getElementById('asideDocProgressBar');
+            const asideReceivedText = document.getElementById('asideDocReceivedText');
+            const asideVerifiedText = document.getElementById('asideDocVerifiedText');
+            const asideAlertText = document.getElementById('asideDocAlertText');
+            const asideAlertBox = document.getElementById('asideDocAlertBox');
+
+            if (progressText) progressText.textContent = `${summary.percentage}%`;
+            if (countText) countText.textContent = `(${summary.received} dari ${summary.total} berkas diterima)`;
+            if (progressBar) progressBar.style.width = `${summary.percentage}%`;
+
+            if (tabBadge) {
+                tabBadge.textContent = `${summary.verified}/${summary.total}`;
+                if (summary.critical_pending > 0) {
+                    tabBadge.className = 'text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 border border-rose-200';
+                } else {
+                    tabBadge.className = 'text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700';
+                }
+            }
+
+            if (criticalAlert) {
+                if (summary.critical_pending > 0) {
+                    criticalAlert.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-bold bg-rose-100 text-rose-800 border border-rose-200';
+                    criticalAlert.innerHTML = `
+                        <svg class="w-3.5 h-3.5 text-rose-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                        <span>${summary.critical_pending} Berkas Kritis Belum Diterima</span>
+                    `;
+                } else {
+                    criticalAlert.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
+                    criticalAlert.innerHTML = `
+                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>Semua Berkas Kritis Lengkap</span>
+                    `;
+                }
+            }
+
+            if (asidePercent) asidePercent.textContent = `${summary.percentage}%`;
+            if (asideProgressBar) asideProgressBar.style.width = `${summary.percentage}%`;
+            if (asideReceivedText) asideReceivedText.textContent = `${summary.received} dari ${summary.total} diterima`;
+            if (asideVerifiedText) asideVerifiedText.textContent = `${summary.verified} terverifikasi`;
+            if (asideAlertBox) {
+                if (summary.critical_pending > 0) {
+                    asideAlertBox.style.display = 'flex';
+                    if (asideAlertText) asideAlertText.textContent = `${summary.critical_pending} berkas kritis belum diserahkan klien.`;
+                } else {
+                    asideAlertBox.style.display = 'none';
+                }
+            }
+        }
+
+        function updateDocStatus(docId, newStatus) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const selectEl = document.querySelector(`.doc-status-select-${docId}`);
+            if (selectEl) selectEl.disabled = true;
+
+            fetch(`/projects/{{ $project->id }}/documents/${docId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(async res => {
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(data.message || 'Gagal memperbarui status dokumen.');
+                }
+                return data;
+            })
+            .then(data => {
+                window.toast?.success(data.message);
+                if (selectEl) {
+                    selectEl.className = `text-[11px] font-semibold py-1 px-2 rounded-lg border cursor-pointer doc-status-select-${docId} ` +
+                        (newStatus === 'verified' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                        (newStatus === 'received' ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                        (newStatus === 'partial' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                        'bg-slate-100 text-slate-700 border-slate-200')));
+                }
+
+                const row = document.getElementById(`client-doc-row-${docId}`);
+                if (row) {
+                    row.dataset.status = newStatus;
+                }
+
+                if (data.summary) {
+                    updateDocSummaryUI(data.summary);
+                }
+
+                // If marked received or verified, threat may have been resolved
+                if (data.document && (newStatus === 'received' || newStatus === 'verified')) {
+                    setTimeout(() => window.location.reload(), 800);
+                }
+            })
+            .catch(err => {
+                window.toast?.error(err.message);
+            })
+            .finally(() => {
+                if (selectEl) selectEl.disabled = false;
+            });
+        }
+
+        function populateDefaultDocs(type) {
+            if (!confirm('Muat checklist standar dokumen untuk penugasan ini?')) return;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch(`/projects/{{ $project->id }}/documents/populate-defaults`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ type: type })
+            })
+            .then(async res => {
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(data.message || 'Gagal memuat dokumen standar.');
+                }
+                return data;
+            })
+            .then(data => {
+                window.toast?.success(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            })
+            .catch(err => {
+                window.toast?.error(err.message);
+            });
+        }
+
+        function deleteClientDoc(docId) {
+            if (!confirm('Apakah Anda yakin ingin menghapus dokumen ini dari checklist?')) return;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch(`/projects/{{ $project->id }}/documents/${docId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken
+                }
+            })
+            .then(async res => {
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(data.message || 'Gagal menghapus dokumen.');
+                }
+                return data;
+            })
+            .then(data => {
+                window.toast?.success(data.message);
+                const row = document.getElementById(`client-doc-row-${docId}`);
+                if (row) row.remove();
+                if (data.summary) {
+                    updateDocSummaryUI(data.summary);
+                }
+            })
+            .catch(err => {
+                window.toast?.error(err.message);
+            });
         }
 
         function updateKanbanColumnStates() {
@@ -1684,6 +2333,149 @@
                     .finally(() => {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalBtnText;
+                    });
+                });
+            }
+
+            // 4. AJAX Add Document Form
+            const addDocForm = document.getElementById('ajaxAddDocForm');
+            if (addDocForm) {
+                addDocForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const submitBtn = addDocForm.querySelector('button[type="submit"]');
+                    const origText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span>Menyimpan...</span>';
+
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    const formData = new FormData(addDocForm);
+
+                    fetch(addDocForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: formData
+                    })
+                    .then(async res => {
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            const firstErr = data.errors ? Object.values(data.errors)[0][0] : data.message;
+                            throw new Error(firstErr || 'Gagal menambahkan dokumen.');
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        document.getElementById('addDocumentModal').close();
+                        addDocForm.reset();
+                        window.toast?.success(data.message);
+                        setTimeout(() => window.location.reload(), 600);
+                    })
+                    .catch(err => {
+                        window.toast?.error(err.message);
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origText;
+                    });
+                });
+            }
+
+            // 5. AJAX Edit Document File URL & Notes Form
+            const docLinkForm = document.getElementById('ajaxDocLinkForm');
+            if (docLinkForm) {
+                docLinkForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const docId = document.getElementById('linkModalDocId').value;
+                    const fileUrl = document.getElementById('linkModalFileUrl').value;
+                    const notes = document.getElementById('linkModalNotes').value;
+                    const submitBtn = docLinkForm.querySelector('button[type="submit"]');
+                    const origText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span>Menyimpan...</span>';
+
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                    fetch(`/projects/{{ $project->id }}/documents/${docId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({
+                            status: document.querySelector(`.doc-status-select-${docId}`)?.value || 'pending',
+                            file_url: fileUrl,
+                            notes: notes
+                        })
+                    })
+                    .then(async res => {
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.message || 'Gagal memperbarui tautan berkas.');
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        document.getElementById('documentLinkModal').close();
+                        window.toast?.success('Tautan berkas berhasil disimpan.');
+                        setTimeout(() => window.location.reload(), 600);
+                    })
+                    .catch(err => {
+                        window.toast?.error(err.message);
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origText;
+                    });
+                });
+            }
+
+            // 6. AJAX Escalate Document to Threat Form
+            const escalateForm = document.getElementById('ajaxEscalateDocForm');
+            if (escalateForm) {
+                escalateForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const docId = document.getElementById('escalateDocId').value;
+                    const notes = document.getElementById('escalateDocNotes').value;
+                    const submitBtn = escalateForm.querySelector('button[type="submit"]');
+                    const origText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span>Mengeskalasi...</span>';
+
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                    fetch(`/projects/{{ $project->id }}/documents/${docId}/escalate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({ notes: notes })
+                    })
+                    .then(async res => {
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.message || 'Gagal mengeskalasi dokumen ke threat.');
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        document.getElementById('escalateDocThreatModal').close();
+                        window.toast?.success(data.message);
+                        setTimeout(() => window.location.reload(), 600);
+                    })
+                    .catch(err => {
+                        window.toast?.error(err.message);
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origText;
                     });
                 });
             }
