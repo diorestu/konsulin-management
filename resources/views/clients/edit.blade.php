@@ -44,8 +44,8 @@
                 </div>
 
                 <div class="md:col-span-2">
-                    <label for="name" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                        Client Name (Nama Perusahaan / WP) <span class="text-rose-500">*</span>
+                    <label for="name" class="flex items-center gap-1 text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 whitespace-nowrap">
+                        <span>Client Name (Nama Perusahaan / WP)</span><span class="text-rose-500" aria-hidden="true">*</span>
                     </label>
                     <input
                         type="text"
