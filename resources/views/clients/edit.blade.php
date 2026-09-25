@@ -12,7 +12,7 @@
         </div>
     </div>
 
-    <form action="{{ route('clients.update', $client) }}" method="POST" class="space-y-6">
+    <form action="{{ route('clients.update', $client) }}" method="POST" class="client-edit-form space-y-6">
         @csrf
         @method('PUT')
 
@@ -458,7 +458,7 @@
         </div>
 
         <!-- FORM ACTION BUTTONS -->
-        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+        <div class="client-edit-actions flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <a href="{{ route('clients.show', $client) }}" class="button secondary">
                 Batal
             </a>
@@ -468,4 +468,14 @@
             </button>
         </div>
     </form>
+
+    <style>
+        .client-edit-form { max-width: 1180px; }
+        .client-edit-form > div:not(.client-edit-actions) { padding: 20px; box-shadow: none; }
+        .client-edit-form label { letter-spacing: .01em; }
+        .client-edit-form input, .client-edit-form select, .client-edit-form textarea { min-height: 40px; border-color: #cbd5e1; }
+        .client-edit-form input:focus, .client-edit-form select:focus, .client-edit-form textarea:focus { border-color: #1e3e62; outline: 2px solid rgba(30, 62, 98, .18); outline-offset: 1px; }
+        .client-edit-actions { position: sticky; bottom: 12px; z-index: 10; padding: 12px 0 0; background: #f8fafc; }
+        @media (max-width: 767px) { .client-edit-form > div:not(.client-edit-actions) { padding: 16px; } .client-edit-actions { bottom: 0; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; } .client-edit-actions .button { flex: 1; } }
+    </style>
 </x-layouts.app>

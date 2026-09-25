@@ -136,8 +136,7 @@
     </div>
 
     <!-- Clients Master Datatable -->
-    <section class="panel p-5 bg-white border border-slate-200/90 rounded-xl mb-6 shadow-sm">
-        <x-datatable
+    <x-datatable
             id="clients-datatable"
             search-placeholder="Cari nama client, client ID, PIC, atau lokasi..."
             empty-message="Belum ada data client yang sesuai kriteria."
@@ -291,6 +290,16 @@
                     </tr>
                 @endforeach
             </x-slot:tbody>
-        </x-datatable>
-    </section>
+    </x-datatable>
+
+    <style>
+        #clients-datatableContainer { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+        #clients-datatableContainer > :first-child { padding: 0 0 12px; border: 0; background: transparent; }
+        #clients-datatableContainer .table-wrap { border-width: 1px 0; border-radius: 0; box-shadow: none; }
+        #clients-datatableContainer .datatable-footer { padding-right: 0; padding-left: 0; background: transparent; }
+        #clients-datatableTable { min-width: 1120px; }
+        #clients-datatableTable thead th { position: sticky; top: 0; z-index: 5; background: #f8fafc; }
+        #clients-datatableTable td { vertical-align: top; }
+        @media (max-width: 767px) { #clients-datatableContainer > :first-child { align-items: stretch; } #clients-datatableContainer .datatable-search-input { min-height: 44px; font-size: 16px; } }
+    </style>
 </x-layouts.app>
