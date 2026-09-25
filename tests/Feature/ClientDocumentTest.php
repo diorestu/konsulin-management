@@ -99,7 +99,7 @@ class ClientDocumentTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Checklist Dokumen Masukan Klien')
-            ->assertSee('Dokumen Masukan (Vault)')
+            ->assertSee('>Dokumen<', false)
             ->assertSee('Berkas Masukan Klien')
             ->assertSee('Rekap Penjualan &amp; Faktur Pajak Keluaran', false);
     }

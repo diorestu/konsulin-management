@@ -7,8 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Konsulin Manager' }} : Jira Workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700,800" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
@@ -39,10 +42,11 @@
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         a { color: inherit; text-decoration: none; }
         .shell {
@@ -331,7 +335,7 @@
         h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: #334155; }
         .muted { color: var(--muted); }
 
-        /* Shadcn style Buttons - Strict Contrast (Grey=Black text, Dark=White text) */
+        /* Precision Buttons - Strict Deep Navy & Crisp Slate High Contrast (WCAG AA/AAA Compliant) */
         .button {
             display: inline-flex;
             align-items: center;
@@ -339,35 +343,46 @@
             gap: 8px;
             min-height: 38px;
             padding: 0 16px;
-            border: 1px solid #0f172a;
+            border: 1px solid #0b192c;
             border-radius: 8px;
-            background: #0f172a;
+            background: #0b192c;
             color: #ffffff !important;
             font-size: 12.5px;
             font-weight: 600;
             cursor: pointer;
             text-decoration: none;
             white-space: nowrap;
+            user-select: none;
             transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.1);
+            box-shadow: 0 1px 2px rgba(11, 25, 44, 0.1);
         }
         .button svg {
             color: #ffffff !important;
+            flex-shrink: 0;
         }
         .button:hover {
-            background: #1e293b;
-            border-color: #1e293b;
+            background: #1e3e62;
+            border-color: #1e3e62;
             color: #ffffff !important;
             transform: translateY(-1px);
-            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.22), 0 2px 4px -2px rgba(15, 23, 42, 0.12);
+            box-shadow: 0 4px 8px -2px rgba(11, 25, 44, 0.18);
         }
         .button:active {
             transform: translateY(0);
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+            background: #070e18;
+            border-color: #070e18;
+            box-shadow: 0 1px 2px rgba(11, 25, 44, 0.12);
         }
         .button:focus-visible {
-            outline: 2px solid #0284c7;
+            outline: 2px solid #0b192c;
             outline-offset: 2px;
+        }
+        .button:disabled,
+        .button[disabled] {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
         }
 
         /* Filter Pill / Badge High Contrast States */
@@ -396,72 +411,95 @@
             border-color: #cbd5e1 !important;
         }
 
-        /* Grey / Light Buttons: ALWAYS SOLID BLACK TEXT */
+        /* Secondary & Outline Buttons: Crisp White with Charcoal Text */
         .button.secondary,
         .button.light,
         .button.outline,
         button.secondary,
         a.button.secondary {
-            background: #f1f5f9 !important;
-            color: #000000 !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
             border: 1px solid #cbd5e1 !important;
             font-weight: 600;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         }
         .button.secondary svg,
         .button.light svg,
         .button.outline svg,
         button.secondary svg,
         a.button.secondary svg {
-            color: #000000 !important;
+            color: #475569 !important;
         }
         .button.secondary:hover,
         .button.light:hover,
         .button.outline:hover,
         button.secondary:hover,
         a.button.secondary:hover {
-            background: #e2e8f0 !important;
+            background: #f8fafc !important;
             border-color: #94a3b8 !important;
-            color: #000000 !important;
+            color: #0b192c !important;
             transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
         }
         .button.secondary:hover svg,
         .button.light:hover svg,
-        .button.outline:hover svg {
-            color: #000000 !important;
+        .button.outline:hover svg,
+        button.secondary:hover svg,
+        a.button.secondary:hover svg {
+            color: #0b192c !important;
         }
         .button.secondary:active,
-        .button.light:active {
-            background: #cbd5e1 !important;
-            color: #000000 !important;
+        .button.light:active,
+        .button.outline:active,
+        button.secondary:active,
+        a.button.secondary:active {
+            background: #f1f5f9 !important;
+            border-color: #94a3b8 !important;
+            color: #0b192c !important;
             transform: translateY(0);
         }
 
-        /* Danger / Dark Red Button: WHITE TEXT */
-        .button.danger {
+        /* Danger Button: Solid Crimson Red with Crisp White Text */
+        .button.danger,
+        button.danger,
+        a.button.danger {
             background: #dc2626 !important;
             border: 1px solid #b91c1c !important;
             color: #ffffff !important;
-            box-shadow: 0 1px 3px rgba(220, 38, 38, 0.25);
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2);
         }
-        .button.danger svg {
+        .button.danger svg,
+        button.danger svg,
+        a.button.danger svg {
             color: #ffffff !important;
         }
-        .button.danger:hover {
+        .button.danger:hover,
+        button.danger:hover,
+        a.button.danger:hover {
             background: #b91c1c !important;
             border-color: #991b1b !important;
             color: #ffffff !important;
             transform: translateY(-1px);
-            box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.3);
+            box-shadow: 0 4px 8px -2px rgba(220, 38, 38, 0.3);
         }
-        .button.danger:active {
+        .button.danger:active,
+        button.danger:active,
+        a.button.danger:active {
+            background: #991b1b !important;
             transform: translateY(0);
         }
+
         .button.small {
             min-height: 32px;
             padding: 0 12px;
             font-size: 12px;
+            border-radius: 6px;
+        }
+        .button.icon-only {
+            width: 32px;
+            min-width: 32px;
+            min-height: 32px;
+            padding: 0;
             border-radius: 6px;
         }
         .button.icon-only {

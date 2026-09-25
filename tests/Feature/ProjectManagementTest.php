@@ -65,6 +65,29 @@ class ProjectManagementTest extends TestCase
             ->assertSee('Collect VAT invoices');
     }
 
+    public function test_project_index_has_readable_active_period_and_icon_only_team_assignments(): void
+    {
+        $boss = $this->authenticateAsBoss();
+        $client = Client::create(['name' => 'PT Periode Aktif']);
+        $project = Project::create([
+            'client_id' => $client->id,
+            'name' => 'Penyusunan SPT Masa',
+            'service_type' => 'Tax',
+            'status' => 'in_progress',
+            'priority' => 'medium',
+            'start_date' => '2026-09-01',
+            'due_date' => '2026-09-30',
+            'created_by' => $boss->id,
+        ]);
+
+        $this->get(route('projects.index'))
+            ->assertOk()
+            ->assertSee('Active period')
+            ->assertSee('01 Sep 2026 – 30 Sep 2026', false)
+            ->assertSee(route('projects.show', $project), false)
+            ->assertSee('project-team-avatar');
+    }
+
     public function test_project_can_be_created_for_a_client(): void
     {
         $boss = $this->authenticateAsBoss();
@@ -318,26 +341,19 @@ class ProjectManagementTest extends TestCase
         // Display in Projects Index
         $this->get(route('projects.index'))
             ->assertOk()
-            ->assertSee('Reviewer')
-            ->assertSee('Dr. Hendra Partner')
-            ->assertSee('PIC Acc')
-            ->assertSee('Ari Accounting')
-            ->assertSee('Bagus Senior Accountant')
-            ->assertSee('PIC Tax')
-            ->assertSee('Nadia Tax')
-            ->assertSee('Cahya Tax Officer');
+            ->assertSee('aria-label="Reviewer: Dr. Hendra Partner"', false)
+            ->assertSee('aria-label="PIC Accounting: Ari Accounting"', false)
+            ->assertSee('aria-label="PIC Tax: Nadia Tax"', false);
 
         // Display in Jira Project Detail
         $this->get(route('projects.show', $project))
             ->assertOk()
-            ->assertSee('Team Composition')
-            ->assertSee('Reviewer (1 Orang)')
+            ->assertSee('Tim proyek')
             ->assertSee('Dr. Hendra Partner')
-            ->assertSee('PIC Accounting (2)')
-            ->assertSee('PIC Tax (2)');
+            ->assertSee('project-detail-avatar');
     }
 
-    public function test_project_detail_shows_quick_action_buttons_and_modals(): void
+    public function test_project_detail_prioritizes_workspace_actions_and_modals(): void
     {
         $this->authenticateAsBoss();
         $client = Client::create(['name' => 'PT Konsulin Test', 'email' => 'test@konsulin.test']);
@@ -351,13 +367,26 @@ class ProjectManagementTest extends TestCase
 
         $this->get(route('projects.show', $project))
             ->assertOk()
-            ->assertSee('Quick Actions')
-            ->assertSee('Add Task')
-            ->assertSee('Upload Progress')
-            ->assertSee('Log Threat')
+            ->assertSee('Tambah tugas')
+            ->assertSee('Aksi proyek')
+            ->assertSee('aria-label="Catat progres"', false)
+            ->assertSee('aria-label="Catat risiko"', false)
             ->assertSee('taskFormModal')
             ->assertSee('progressModal')
             ->assertSee('threatModal');
+    }
+
+    public function test_project_detail_renders_a_readable_kanban_workspace(): void
+    {
+        $this->authenticateAsBoss();
+        $project = Project::factory()->create();
+
+        $this->get(route('projects.show', $project))
+            ->assertOk()
+            ->assertSee('kanban-workspace', false)
+            ->assertSee('kanban-lanes', false)
+            ->assertSee('kanban-lane', false)
+            ->assertSee('kanban-empty-state', false);
     }
 
     public function test_ajax_actions_return_json_for_toast_notification_flow(): void
@@ -419,5 +448,3 @@ class ProjectManagementTest extends TestCase
             ->assertJsonPath('threat.title', 'Server DJP Maintenance');
     }
 }
-
-

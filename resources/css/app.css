@@ -1,40 +1,12 @@
 @import 'tailwindcss';
 
-@layer components {
-    .public-site { min-height: 100vh; background: #f6f7f4; color: #17211f; font-family: ui-sans-serif, system-ui, sans-serif; }
-    .public-nav { max-width: 1180px; margin: 0 auto; padding: 28px 28px 18px; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
-    .public-nav > div { display: flex; align-items: center; gap: 22px; }
-    .public-nav a:not(.button) { color: #53605b; font-size: .9rem; }
-    .public-hero, .public-section { max-width: 1180px; margin: 0 auto; padding: 110px 28px; }
-    .public-hero { min-height: 620px; display: grid; align-content: center; max-width: 980px; margin-left: max(28px, calc((100vw - 1180px) / 2)); }
-    .public-hero h1 { max-width: 780px; margin: 18px 0; font-size: clamp(3.4rem, 8vw, 7rem); line-height: .98; letter-spacing: -.07em; font-weight: 600; }
-    .public-hero p:not(.eyebrow) { max-width: 570px; color: #5f6c67; font-size: 1.1rem; line-height: 1.7; margin-bottom: 30px; }
-    .eyebrow { color: #b05c35; font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
-    .button { display: inline-flex; align-items: center; justify-content: center; padding: 12px 18px; border-radius: 999px; background: #193f38; color: #ffffff; font-size: .85rem; font-weight: 700; }
-    .button:hover { background: #b05c35; color: #ffffff; }
-    .public-section { border-top: 1px solid #dfe5df; }
-    .public-section h2, .public-cta h2 { max-width: 680px; margin: 16px 0; font-size: clamp(2.4rem, 5vw, 4.8rem); line-height: 1; letter-spacing: -.06em; font-weight: 600; }
-    .public-section > p:not(.eyebrow), .public-cta p { max-width: 580px; color: #68756f; line-height: 1.7; }
-    .service-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 56px; }
-    .service-grid article { min-height: 180px; padding: 24px; border-radius: 20px; background: #e4ebe3; display: flex; flex-direction: column; justify-content: space-between; }
-    .service-grid article:nth-child(2) { background: #e8ded4; transform: translateY(22px); }
-    .service-grid article:nth-child(3) { background: #d9e8e3; }
-    .service-grid b { font-size: 1.25rem; }
-    .service-grid span { color: #66736d; }
-    .public-cta { padding: 110px max(28px, calc((100vw - 1180px) / 2)); background: #193f38; color: white; }
-    .public-cta p { color: #c6d7cf; margin-bottom: 28px; }
-    .button.light,
-    .button.secondary { background: #f0e1d3; color: #000000 !important; }
-    @media (max-width: 700px) { .public-nav { align-items: flex-start; } .public-nav > div a:not(.button) { display: none; } .public-hero, .public-section { padding: 84px 22px; margin-left: auto; } .public-hero h1 { font-size: clamp(3.1rem, 16vw, 5rem); } .service-grid { grid-template-columns: minmax(0, 1fr); } .service-grid article:nth-child(2) { transform: none; } }
-}
-
 @source '../views/**/*.blade.php';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --color-navy-950: #070e18;
     --color-navy-900: #0b192c;
     --color-navy-800: #132a48;
@@ -43,4 +15,165 @@
     --color-navy-500: #3874aa;
     --color-navy-100: #e2ebf4;
     --color-navy-50: #f0f5fa;
+}
+
+@layer base {
+    html, body {
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+@layer components {
+    /* Base Button: Deep Navy Primary (WCAG AAA Contrast > 14:1) */
+    .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-height: 2.375rem;
+        padding: 0 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #0b192c;
+        background-color: #0b192c;
+        color: #ffffff !important;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        line-height: 1.25rem;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+        user-select: none;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px 0 rgba(11, 25, 44, 0.1);
+    }
+    .button svg {
+        color: #ffffff !important;
+        flex-shrink: 0;
+    }
+    .button:hover {
+        background-color: #1e3e62;
+        border-color: #1e3e62;
+        color: #ffffff !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px -2px rgba(11, 25, 44, 0.18);
+    }
+    .button:active {
+        transform: translateY(0);
+        background-color: #070e18;
+        border-color: #070e18;
+        box-shadow: 0 1px 2px rgba(11, 25, 44, 0.12);
+    }
+    .button:focus-visible {
+        outline: 2px solid #0b192c;
+        outline-offset: 2px;
+    }
+    .button:disabled,
+    .button[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Secondary / Outline Button: Crisp White with Slate Border & Charcoal Text (WCAG AAA Contrast > 14:1) */
+    .button.secondary,
+    .button.outline,
+    .button.light,
+    button.secondary,
+    a.button.secondary {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+    }
+    .button.secondary svg,
+    .button.outline svg,
+    .button.light svg,
+    button.secondary svg,
+    a.button.secondary svg {
+        color: #475569 !important;
+    }
+    .button.secondary:hover,
+    .button.outline:hover,
+    .button.light:hover,
+    button.secondary:hover,
+    a.button.secondary:hover {
+        background-color: #f8fafc !important;
+        border-color: #94a3b8 !important;
+        color: #0b192c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+    .button.secondary:hover svg,
+    .button.outline:hover svg,
+    .button.light:hover svg,
+    button.secondary:hover svg,
+    a.button.secondary:hover svg {
+        color: #0b192c !important;
+    }
+    .button.secondary:active,
+    .button.outline:active,
+    .button.light:active,
+    button.secondary:active,
+    a.button.secondary:active {
+        background-color: #f1f5f9 !important;
+        border-color: #94a3b8 !important;
+        color: #0b192c !important;
+        transform: translateY(0);
+    }
+
+    /* Danger Button: Solid Crimson Red (High Contrast > 4.5:1) */
+    .button.danger,
+    button.danger,
+    a.button.danger {
+        background-color: #dc2626 !important;
+        border-color: #b91c1c !important;
+        color: #ffffff !important;
+        box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2);
+    }
+    .button.danger svg,
+    button.danger svg,
+    a.button.danger svg {
+        color: #ffffff !important;
+    }
+    .button.danger:hover,
+    button.danger:hover,
+    a.button.danger:hover {
+        background-color: #b91c1c !important;
+        border-color: #991b1b !important;
+        color: #ffffff !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px -2px rgba(220, 38, 38, 0.3);
+    }
+    .button.danger:active,
+    button.danger:active,
+    a.button.danger:active {
+        background-color: #991b1b !important;
+        transform: translateY(0);
+    }
+
+    /* Button Sizes */
+    .button.small {
+        min-height: 2rem;
+        padding: 0 0.75rem;
+        font-size: 0.75rem;
+        border-radius: 0.375rem;
+    }
+
+    .button.large {
+        min-height: 2.75rem;
+        padding: 0 1.25rem;
+        font-size: 0.875rem;
+        border-radius: 0.5rem;
+    }
+
+    .button.icon-only {
+        width: 2rem;
+        min-width: 2rem;
+        min-height: 2rem;
+        padding: 0;
+        border-radius: 0.375rem;
+    }
 }

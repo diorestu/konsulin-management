@@ -28,6 +28,7 @@ class Client extends Model
         'client_pic',
         'location',
         'tax_status',
+        'pph_scheme',
         'business_type',
         'contract_status',
         'start_date',

@@ -40,11 +40,14 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('projects', ProjectController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::resource('clients', ClientController::class);
+    Route::patch('/clients/{client}/compliance-status', [ClientController::class, 'updateComplianceStatus'])->name('clients.compliances.update-status');
     Route::resource('project-categories', ProjectCategoryController::class)->except(['create', 'show', 'edit']);
     Route::resource('staff', StaffController::class)->except(['create', 'show', 'edit']);
 
     Route::post('/projects/{project}/tasks', [ProjectController::class, 'storeTask'])->name('projects.tasks.store');
     Route::patch('/projects/{project}/tasks/{task}/status', [ProjectController::class, 'updateTaskStatus'])->name('projects.tasks.update-status');
+    Route::patch('/projects/{project}/tasks/{task}/estimate', [ProjectController::class, 'updateTaskEstimate'])->name('projects.tasks.update-estimate');
+    Route::patch('/projects/{project}/budget', [ProjectController::class, 'updateBudget'])->name('projects.update-budget');
     Route::post('/projects/{project}/tasks/{task}/submit-review', [\App\Http\Controllers\TaskReviewController::class, 'submitForReview'])->name('projects.tasks.submit-review');
     Route::post('/projects/{project}/tasks/{task}/review', [\App\Http\Controllers\TaskReviewController::class, 'review'])->name('projects.tasks.review');
     Route::get('/projects/{project}/tasks/{task}/review-data', [\App\Http\Controllers\TaskReviewController::class, 'getReviewData'])->name('projects.tasks.review-data');

@@ -60,9 +60,11 @@
             'client' => ['label' => 'Client', 'sortable' => true],
             'project' => ['label' => 'Project', 'sortable' => true],
             'category' => ['label' => 'Category', 'sortable' => true, 'info' => 'Kategori layanan'],
+            'client_profile' => ['label' => 'Client tax & contract', 'sortable' => true],
             'staff' => ['label' => 'Team & PIC', 'sortable' => true],
             'service' => ['label' => 'Service', 'sortable' => true],
             'status' => ['label' => 'Status', 'sortable' => true, 'sorted' => true, 'direction' => 'desc'],
+            'active_period' => ['label' => 'Active period', 'sortable' => true],
             'priority' => ['label' => 'Priority', 'sortable' => true],
             'trend' => ['label' => 'Trend', 'sortable' => false],
             'progress' => ['label' => 'Progress', 'sortable' => true],
@@ -80,47 +82,68 @@
                 data-staff="{{ $project->reviewer?->name }} {{ $project->accountingStaff->pluck('name')->join(' ') }} {{ $project->taxStaff->pluck('name')->join(' ') }} {{ $project->staff->pluck('name')->join(' ') }}"
                 data-service="{{ $project->service_type }}"
                 data-status="{{ $project->status }}"
+                data-active_period="{{ $project->start_date?->format('Y-m-d') ?? '' }}"
                 data-priority="{{ $project->priority }}"
                 data-progress="{{ $project->progressPercent() }}"
                 data-due="{{ $project->due_date?->format('Y-m-d') ?? '' }}"
                 class="hover:bg-slate-50/80 transition-colors"
             >
-                <td data-column="client" class="py-3.5 px-4 font-semibold text-slate-900">
+                <td data-column="client" class="project-sticky-client py-3.5 px-4 font-semibold text-slate-900">
                     {{ $project->client->name }}
                 </td>
                 <td data-column="project" class="py-3.5 px-4">
                     <a href="{{ route('projects.show', $project) }}" class="font-semibold text-slate-900 hover:text-[#1e3e62]">
                         <strong>{{ $project->name }}</strong>
                     </a>
-                    <div class="muted text-xs mt-0.5">{{ $project->tasks->count() }} tasks · {{ $project->threats->where('status', 'open')->count() }} open threats</div>
+                    <div class="muted text-xs mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>{{ $project->tasks->count() }} tasks</span>
+                        <span>·</span>
+                        <span>{{ $project->threats->where('status', 'open')->count() }} open threats</span>
+                        @if ($project->effectiveEstimatedHours() > 0)
+                            <span>·</span>
+                            <span class="font-mono {{ $project->budgetStatus() === 'over_budget' ? 'text-rose-600 font-bold' : ($project->budgetStatus() === 'warning' ? 'text-amber-700 font-bold' : 'text-slate-600') }}" title="Realisasi {{ $project->formattedTotalLoggedTime() }} dari anggaran {{ (float)$project->effectiveEstimatedHours() }} jam (Burn: {{ $project->burnRatePercent() }}%)">
+                                {{ $project->formattedTotalLoggedTime() }} / {{ (float) $project->effectiveEstimatedHours() }}j ({{ $project->burnRatePercent() }}%)
+                            </span>
+                        @endif
+                    </div>
                     @if ($project->tasks->isNotEmpty())
                         <div class="muted text-xs">Latest task: {{ $project->tasks->first()->title }}</div>
                     @endif
                 </td>
                 <td data-column="category" class="py-3.5 px-4 text-slate-600">{{ $project->category?->name ?? '-' }}</td>
+                <td data-column="client_profile" class="py-3.5 px-4 text-xs text-slate-700">
+                    <div class="font-semibold">{{ $project->client->tax_status ?? '-' }}</div>
+                    <div class="text-slate-500">{{ $project->client->start_date?->format('d M Y') ?? '-' }} – {{ $project->client->end_contract_due_date?->format('d M Y') ?? '-' }}</div>
+                    <div class="text-slate-500">{{ $project->client->pph_scheme ?? 'Skema PPh belum diatur' }}</div>
+                </td>
                 <td data-column="staff" class="py-3.5 px-4">
-                    <div class="space-y-1.5 text-xs">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">Reviewer</span>
-                            <span class="text-slate-800 font-semibold">{{ $project->reviewer?->name ?? $project->creator?->name ?? 'Unassigned' }}</span>
-                        </div>
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">PIC Acc</span>
-                            <span class="text-slate-700 font-medium">
-                                {{ $project->accountingStaff->isNotEmpty() ? $project->accountingStaff->pluck('name')->join(', ') : ($project->staff->where('type', 'accounting')->isNotEmpty() ? $project->staff->where('type', 'accounting')->pluck('name')->join(', ') : '-') }}
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">PIC Tax</span>
-                            <span class="text-slate-700 font-medium">
-                                {{ $project->taxStaff->isNotEmpty() ? $project->taxStaff->pluck('name')->join(', ') : ($project->staff->where('type', 'tax')->isNotEmpty() ? $project->staff->where('type', 'tax')->pluck('name')->join(', ') : '-') }}
-                            </span>
-                        </div>
+                    @php
+                        $reviewer = $project->reviewer ?? $project->creator;
+                        $accountingPic = $project->accountingStaff->isNotEmpty() ? $project->accountingStaff : $project->staff->where('type', 'accounting');
+                        $taxPic = $project->taxStaff->isNotEmpty() ? $project->taxStaff : $project->staff->where('type', 'tax');
+                    @endphp
+                    <div class="flex items-center -space-x-1.5" aria-label="Team assignments">
+                        @if ($reviewer)
+                            <span class="project-team-avatar bg-slate-900 text-white" aria-label="Reviewer: {{ $reviewer->name }}" title="{{ $reviewer->name }}">{{ \Illuminate\Support\Str::of($reviewer->name)->explode(' ')->filter()->take(2)->map(fn ($part) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($part, 0, 1)))->join('') }}</span>
+                        @endif
+                        @foreach ($accountingPic as $member)
+                            <span class="project-team-avatar bg-blue-100 text-blue-800" aria-label="PIC Accounting: {{ $member->name }}" title="{{ $member->name }}">{{ \Illuminate\Support\Str::of($member->name)->explode(' ')->filter()->take(2)->map(fn ($part) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($part, 0, 1)))->join('') }}</span>
+                        @endforeach
+                        @foreach ($taxPic as $member)
+                            <span class="project-team-avatar bg-amber-100 text-amber-800" aria-label="PIC Tax: {{ $member->name }}" title="{{ $member->name }}">{{ \Illuminate\Support\Str::of($member->name)->explode(' ')->filter()->take(2)->map(fn ($part) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($part, 0, 1)))->join('') }}</span>
+                        @endforeach
                     </div>
                 </td>
                 <td data-column="service" class="py-3.5 px-4 text-slate-700 font-medium">{{ $project->service_type }}</td>
                 <td data-column="status" class="py-3.5 px-4">
                     <x-datatable.status :type="$project->status" />
+                </td>
+                <td data-column="active_period" class="py-3.5 px-4 text-xs text-slate-700 whitespace-nowrap">
+                    @if ($project->start_date || $project->due_date)
+                        {{ $project->start_date?->format('d M Y') ?? 'Belum dimulai' }} – {{ $project->due_date?->format('d M Y') ?? 'Tanpa batas' }}
+                    @else
+                        <span class="text-slate-400">Belum diatur</span>
+                    @endif
                 </td>
                 <td data-column="priority" class="py-3.5 px-4">
                     <span class="label {{ in_array($project->priority, ['high', 'urgent'], true) ? 'warning' : '' }} text-xs">
@@ -137,7 +160,7 @@
                     <strong class="text-xs text-slate-800">{{ $project->progressPercent() }}%</strong>
                 </td>
                 <td data-column="due" class="py-3.5 px-4 text-xs text-slate-600 whitespace-nowrap">{{ $project->due_date?->format('d M Y') ?? '-' }}</td>
-                <td data-column="actions" class="py-3.5 px-4 text-right">
+                <td data-column="actions" class="project-sticky-actions py-3.5 px-4 text-right">
                     <div class="actions justify-end">
                         <a class="button secondary small icon-only" href="{{ route('projects.show', $project) }}" aria-label="View project" title="View Jira Board">
                             <x-heroicon-o-squares-2x2 class="w-4 h-4" />
@@ -165,6 +188,7 @@
                             data-service-type="{{ $project->service_type }}"
                             data-status="{{ $project->status }}"
                             data-priority="{{ $project->priority }}"
+                            data-estimated-hours="{{ (float) ($project->estimated_hours ?? 0) }}"
                             data-start-date="{{ $project->start_date?->format('Y-m-d') }}"
                             data-due-date="{{ $project->due_date?->format('Y-m-d') }}"
                             data-created-by="{{ $project->created_by }}"
@@ -186,12 +210,29 @@
             </tr>
         @empty
             <tr data-empty-row>
-                <td colspan="11" class="muted py-8 text-center text-xs">
+                <td colspan="13" class="muted py-8 text-center text-xs">
                     No projects yet. Create the first client project to start tracking tasks, progress, and threats.
                 </td>
             </tr>
         @endforelse
-    </x-datatable>
+</x-datatable>
+
+<style>
+    #projectTable { min-width: 1380px; table-layout: auto; }
+    #projectTable th[data-column="client"], #projectTable td[data-column="client"] { min-width: 190px; max-width: 280px; }
+    #projectTable th[data-column="project"], #projectTable td[data-column="project"] { min-width: 270px; }
+    #projectTable th[data-column="staff"], #projectTable td[data-column="staff"] { min-width: 112px; }
+    #projectTable th[data-column="service"], #projectTable td[data-column="service"] { min-width: 120px; }
+    #projectTable th[data-column="active_period"], #projectTable td[data-column="active_period"] { min-width: 190px; }
+    #projectTable th[data-column="actions"], #projectTable td[data-column="actions"] { min-width: 112px; }
+    #projectTable .project-sticky-client { position: sticky; left: 0; z-index: 10; background: #fff; box-shadow: 2px 0 0 #e2e8f0; }
+    #projectTable tbody tr:hover .project-sticky-client { background: #f8fafc; }
+    #projectTable .project-sticky-actions { position: sticky; right: 0; z-index: 10; background: #fff; box-shadow: -2px 0 0 #e2e8f0; }
+    #projectTable tbody tr:hover .project-sticky-actions { background: #f8fafc; }
+    #projectTable thead .project-sticky-client, #projectTable thead .project-sticky-actions { z-index: 20; background: #fff; }
+    .project-team-avatar { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 9999px; font-size: 10px; font-weight: 700; line-height: 1; }
+    @media (max-width: 767px) { #projectTable { min-width: 1240px; } .project-team-avatar { width: 32px; height: 32px; } }
+</style>
 
     <dialog id="projectModal">
         <div class="modal-head">
@@ -373,6 +414,9 @@
                     </label>
                     <label>Due date
                         <input type="date" name="due_date" id="due_date">
+                    </label>
+                    <label class="full-width">Target Anggaran Jam Kerja (Hours)
+                        <input type="number" step="0.25" min="0" max="9999" name="estimated_hours" id="estimated_hours" placeholder="Contoh: 25.0 (Target anggaran jam kerja proyek yang disepakati)">
                     </label>
                 </div>
             </section>
@@ -701,6 +745,7 @@
             setValue('service_type', button.dataset.serviceType);
             setValue('status', button.dataset.status);
             setValue('priority', button.dataset.priority);
+            setValue('estimated_hours', button.dataset.estimatedHours || '0');
             setValue('start_date', button.dataset.startDate);
             setValue('due_date', button.dataset.dueDate);
             setValue('created_by', button.dataset.createdBy);

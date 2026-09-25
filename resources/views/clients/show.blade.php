@@ -170,7 +170,7 @@
             </div>
             <a href="{{ route('clients.edit', $client) }}" class="button small secondary">
                 <x-heroicon-o-pencil class="w-3.5 h-3.5" />
-                <span>Ubah Status Matriks</span>
+                <span>Edit detail matriks</span>
             </a>
         </div>
 
@@ -192,30 +192,31 @@
                     @foreach($periods as $period)
                         @php
                             $comp = $compliancesMap[$period] ?? null;
-                            $renderBadge = function($val) {
-                                if (! $val || $val === '-' || strtolower($val) === 'n/a') {
-                                    return '<span class="text-slate-400 font-normal">-</span>';
+                            $statusOptions = ['-', 'Belum mulai', 'Dalam proses', 'Menunggu client', 'Selesai', 'Nihil'];
+                            $renderStatusSelect = function($field, $value) use ($period, $statusOptions) {
+                                $resolvedValue = $value ?: '-';
+                                $options = in_array($resolvedValue, $statusOptions, true)
+                                    ? $statusOptions
+                                    : array_merge([$resolvedValue], $statusOptions);
+
+                                $html = '<select class="compliance-status-select" aria-label="Status ' . e($field) . ' periode ' . e($period) . '" data-compliance-field="' . e($field) . '" data-compliance-period="' . e($period) . '">';
+                                foreach ($options as $option) {
+                                    $html .= '<option value="' . e($option) . '"' . ($option === $resolvedValue ? ' selected' : '') . '>' . e($option) . '</option>';
                                 }
-                                $lower = strtolower($val);
-                                if (str_contains($lower, 'done') || str_contains($lower, 'selesai') || str_contains($lower, 'nihil') || str_contains($lower, 'final')) {
-                                    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">✓ ' . e($val) . '</span>';
-                                }
-                                if (str_contains($lower, 'pending') || str_contains($lower, 'tunda') || str_contains($lower, 'kurang')) {
-                                    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">! ' . e($val) . '</span>';
-                                }
-                                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">' . e($val) . '</span>';
+
+                                return $html . '</select>';
                             };
                         @endphp
                         <tr class="hover:bg-slate-50/70 transition-colors">
                             <td class="p-3 font-bold text-slate-900 bg-slate-50/60 whitespace-nowrap border-r border-slate-100">
                                 {{ $period }}
                             </td>
-                            <td class="p-3 whitespace-nowrap">{!! $renderBadge($comp?->pph_21) !!}</td>
-                            <td class="p-3 whitespace-nowrap">{!! $renderBadge($comp?->pph_unifikasi) !!}</td>
-                            <td class="p-3 whitespace-nowrap">{!! $renderBadge($comp?->ppn) !!}</td>
-                            <td class="p-3 whitespace-nowrap">{!! $renderBadge($comp?->pp_55) !!}</td>
-                            <td class="p-3 whitespace-nowrap">{!! $renderBadge($comp?->pph_25) !!}</td>
-                            <td class="p-3 whitespace-nowrap">{!! $renderBadge($comp?->lk) !!}</td>
+                            <td class="p-3 whitespace-nowrap">{!! $renderStatusSelect('PPh 21', $comp?->pph_21) !!}</td>
+                            <td class="p-3 whitespace-nowrap">{!! $renderStatusSelect('PPh Unifikasi', $comp?->pph_unifikasi) !!}</td>
+                            <td class="p-3 whitespace-nowrap">{!! $renderStatusSelect('PPN', $comp?->ppn) !!}</td>
+                            <td class="p-3 whitespace-nowrap">{!! $renderStatusSelect('PP 55', $comp?->pp_55) !!}</td>
+                            <td class="p-3 whitespace-nowrap">{!! $renderStatusSelect('PPh 25', $comp?->pph_25) !!}</td>
+                            <td class="p-3 whitespace-nowrap">{!! $renderStatusSelect('LK', $comp?->lk) !!}</td>
                             <td class="p-3 text-slate-600">
                                 {{ $comp?->notes ?? '-' }}
                             </td>
@@ -260,3 +261,43 @@
         </section>
     @endif
 </x-layouts.app>
+
+<style>
+    .compliance-status-select { min-height: 32px; max-width: 150px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; padding: 0 28px 0 9px; font: inherit; font-size: 11px; font-weight: 600; }
+    .compliance-status-select:focus-visible { outline: 2px solid #1e3e62; outline-offset: 2px; }
+    .compliance-status-select:disabled { opacity: .6; cursor: wait; }
+</style>
+
+<script>
+    document.querySelectorAll('.compliance-status-select').forEach((select) => {
+        select.addEventListener('change', async () => {
+            const previousValue = select.dataset.savedValue ?? '';
+            select.disabled = true;
+
+            try {
+                const response = await fetch('{{ route('clients.compliances.update-status', $client) }}', {
+                    method: 'PATCH',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify({
+                        period: select.dataset.compliancePeriod,
+                        field: ({ 'PPh 21': 'pph_21', 'PPh Unifikasi': 'pph_unifikasi', 'PPN': 'ppn', 'PP 55': 'pp_55', 'PPh 25': 'pph_25', 'LK': 'lk' })[select.dataset.complianceField],
+                        status: select.value,
+                    }),
+                });
+
+                if (!response.ok) throw new Error('Gagal menyimpan status');
+                select.dataset.savedValue = select.value;
+            } catch (error) {
+                select.value = previousValue || select.options[0].value;
+                window.alert('Status kepatuhan belum tersimpan. Silakan coba lagi.');
+            } finally {
+                select.disabled = false;
+            }
+        });
+        select.dataset.savedValue = select.value;
+    });
+</script>

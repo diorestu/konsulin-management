@@ -14,6 +14,27 @@
         </div>
     </div>
 
+    <form method="GET" action="{{ route('clients.index') }}" class="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-3">
+        <label class="grid gap-1 text-xs font-semibold text-slate-600">Karyawan
+            <select name="employee" class="min-w-48">
+                <option value="">Semua karyawan</option>
+                @foreach($filterPeople as $person)
+                    <option value="{{ $person['value'] }}" @selected(request('employee') === $person['value'])>{{ $person['label'] }} · {{ ucfirst($person['role']) }}</option>
+                @endforeach
+            </select>
+        </label>
+        <label class="grid gap-1 text-xs font-semibold text-slate-600">Role
+            <select name="role">
+                <option value="">Semua role</option>
+                <option value="reviewer" @selected(request('role') === 'reviewer')>PIC Reviewer</option>
+                <option value="accounting" @selected(request('role') === 'accounting')>PIC Accounting</option>
+                <option value="tax" @selected(request('role') === 'tax')>PIC Tax</option>
+            </select>
+        </label>
+        <button class="button small" type="submit">Terapkan</button>
+        @if(request()->hasAny(['employee', 'role']))<a class="button secondary small" href="{{ route('clients.index') }}">Reset</a>@endif
+    </form>
+
     <!-- Metric Stat Cards -->
     <section class="stats" data-animate-children>
         <div class="stat">
@@ -180,7 +201,7 @@
                                     </span>
                                 @endif
                             </div>
-                            <div class="text-[11px] text-slate-500">{{ $client->business_type ?? '-' }}</div>
+                            <div class="text-[11px] text-slate-500">{{ $client->pph_scheme ?? ($client->business_type ?? '-') }}</div>
                         </td>
 
                         <td class="px-4 py-3 text-xs" data-column="Kontrak & Durasi">
@@ -192,7 +213,7 @@
                                 @endif
                             </div>
                             <div class="text-[11px] text-slate-500 mt-0.5">
-                                Due: <span class="font-medium text-slate-700">{{ $client->end_contract_due_date ? $client->end_contract_due_date->format('d M Y') : '-' }}</span>
+                                {{ $client->start_date?->format('d M Y') ?? '-' }} – <span class="font-medium text-slate-700">{{ $client->end_contract_due_date ? $client->end_contract_due_date->format('d M Y') : '-' }}</span>
                             </div>
                         </td>
 
@@ -217,6 +238,7 @@
                         </td>
 
                         <td class="px-4 py-3 text-xs" data-column="Tim Konsulin">
+                            <div class="text-slate-800 mb-0.5"><span class="text-[10px] font-semibold text-slate-400 uppercase">Review:</span> {{ $client->projects->pluck('reviewer.name')->filter()->unique()->join(', ') ?: '-' }}</div>
                             <div class="text-slate-800">
                                 <span class="text-[10px] font-semibold text-slate-400 uppercase">Tax:</span> {{ $client->tax_pic ?? '-' }}
                             </div>

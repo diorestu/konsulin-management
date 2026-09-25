@@ -71,6 +71,7 @@ class ProjectController extends Controller
             'service_type' => ['required', 'string', 'max:100'],
             'status' => ['required', 'string', 'max:50'],
             'priority' => ['required', 'string', 'max:50'],
+            'estimated_hours' => ['nullable', 'numeric', 'min:0', 'max:99999'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'description' => ['nullable', 'string'],
@@ -107,6 +108,7 @@ class ProjectController extends Controller
             'service_type' => $validated['service_type'],
             'status' => $validated['status'],
             'priority' => $validated['priority'],
+            'estimated_hours' => $validated['estimated_hours'] ?? 0,
             'start_date' => $validated['start_date'] ?? null,
             'due_date' => $validated['due_date'] ?? null,
             'description' => $validated['description'] ?? null,
@@ -156,6 +158,7 @@ class ProjectController extends Controller
             'staff',
             'tasks.assignee',
             'tasks.reviewer',
+            'tasks.timeLogs',
             'tasks.checklists.checker',
             'tasks.reviews.reviewer',
             'tasks.threats',
@@ -197,6 +200,7 @@ class ProjectController extends Controller
             'service_type' => ['required', 'string', 'max:100'],
             'status' => ['required', 'string', 'max:50'],
             'priority' => ['required', 'string', 'max:50'],
+            'estimated_hours' => ['nullable', 'numeric', 'min:0', 'max:99999'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'description' => ['nullable', 'string'],
@@ -230,6 +234,7 @@ class ProjectController extends Controller
             'service_type' => $validated['service_type'],
             'status' => $validated['status'],
             'priority' => $validated['priority'],
+            'estimated_hours' => $validated['estimated_hours'] ?? 0,
             'start_date' => $validated['start_date'] ?? null,
             'due_date' => $validated['due_date'] ?? null,
             'description' => $validated['description'] ?? null,
@@ -292,6 +297,7 @@ class ProjectController extends Controller
             'assigned_to' => ['nullable', 'exists:users,id'],
             'status' => ['required', 'string', 'in:not_started,in_progress,waiting_client,in_review,completed'],
             'progress_percent' => ['required', 'integer', 'min:0', 'max:100'],
+            'estimated_hours' => ['nullable', 'numeric', 'min:0', 'max:9999'],
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
@@ -309,6 +315,13 @@ class ProjectController extends Controller
                     'title' => $task->title,
                     'status' => $task->status,
                     'progress_percent' => $task->progress_percent,
+                    'estimated_hours' => (float) ($task->estimated_hours ?? 0),
+                    'actual_hours' => $task->actualLoggedHours(),
+                    'formatted_actual_time' => $task->formattedActualLoggedTime(),
+                    'burn_rate' => $task->burnRatePercent(),
+                    'budget_status' => $task->budgetStatus(),
+                    'remaining_hours' => $task->remainingHours(),
+                    'over_budget_hours' => $task->overBudgetHours(),
                     'due_date' => $task->due_date ? $task->due_date->format('d M') : null,
                     'due_date_full' => $task->due_date ? $task->due_date->format('d M Y') : '-',
                     'notes' => $task->notes,
@@ -316,6 +329,17 @@ class ProjectController extends Controller
                     'assignee_initial' => substr($task->assignee?->name ?? 'U', 0, 1),
                 ],
                 'project_progress' => $project->fresh()->progressPercent(),
+                'project_budget' => [
+                    'project_budget_hours' => $project->fresh()->projectBudgetHours(),
+                    'tasks_total_estimated_hours' => $project->fresh()->tasksTotalEstimatedHours(),
+                    'effective_estimated_hours' => $project->fresh()->effectiveEstimatedHours(),
+                    'total_logged_hours' => $project->fresh()->totalLoggedHours(),
+                    'formatted_total_logged_time' => $project->fresh()->formattedTotalLoggedTime(),
+                    'burn_rate' => $project->fresh()->burnRatePercent(),
+                    'budget_status' => $project->fresh()->budgetStatus(),
+                    'remaining_hours' => $project->fresh()->remainingHours(),
+                    'over_budget_hours' => $project->fresh()->overBudgetHours(),
+                ],
                 'total_tasks' => $project->tasks()->count(),
                 'completed_tasks' => $project->tasks()->where('status', 'completed')->count(),
                 'in_progress_tasks' => $project->tasks()->where('status', 'in_progress')->count(),
@@ -384,6 +408,17 @@ class ProjectController extends Controller
                 'new_status' => $status,
                 'progress_percent' => $progress,
                 'project_progress' => $project->fresh()->progressPercent(),
+                'project_budget' => [
+                    'project_budget_hours' => $project->fresh()->projectBudgetHours(),
+                    'tasks_total_estimated_hours' => $project->fresh()->tasksTotalEstimatedHours(),
+                    'effective_estimated_hours' => $project->fresh()->effectiveEstimatedHours(),
+                    'total_logged_hours' => $project->fresh()->totalLoggedHours(),
+                    'formatted_total_logged_time' => $project->fresh()->formattedTotalLoggedTime(),
+                    'burn_rate' => $project->fresh()->burnRatePercent(),
+                    'budget_status' => $project->fresh()->budgetStatus(),
+                    'remaining_hours' => $project->fresh()->remainingHours(),
+                    'over_budget_hours' => $project->fresh()->overBudgetHours(),
+                ],
                 'completed_tasks' => $project->tasks()->where('status', 'completed')->count(),
                 'in_progress_tasks' => $project->tasks()->where('status', 'in_progress')->count(),
             ]);
@@ -392,5 +427,90 @@ class ProjectController extends Controller
         return redirect()
             ->route('projects.show', $project)
             ->with('status', 'Status task berhasil diperbarui.');
+    }
+
+    public function updateTaskEstimate(Request $request, Project $project, ProjectTask $task): JsonResponse|RedirectResponse
+    {
+        if (auth()->check() && ! $task->canBeUpdatedBy(auth()->user())) {
+            abort(403, 'Akses ditolak. Anda tidak berwenang memperbarui estimasi tugas ini.');
+        }
+
+        if ($task->project_id !== $project->id) {
+            abort(404, 'Tugas tidak ditemukan pada proyek ini.');
+        }
+
+        $validated = $request->validate([
+            'estimated_hours' => ['required', 'numeric', 'min:0', 'max:9999'],
+        ]);
+
+        $task->update([
+            'estimated_hours' => $validated['estimated_hours'],
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Estimasi waktu tugas "' . $task->title . '" diperbarui menjadi ' . (float) $task->estimated_hours . ' jam.',
+                'task' => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'estimated_hours' => (float) $task->estimated_hours,
+                    'actual_hours' => $task->actualLoggedHours(),
+                    'formatted_actual_time' => $task->formattedActualLoggedTime(),
+                    'burn_rate' => $task->burnRatePercent(),
+                    'budget_status' => $task->budgetStatus(),
+                    'remaining_hours' => $task->remainingHours(),
+                    'over_budget_hours' => $task->overBudgetHours(),
+                ],
+                'project_budget' => [
+                    'project_budget_hours' => $project->fresh()->projectBudgetHours(),
+                    'tasks_total_estimated_hours' => $project->fresh()->tasksTotalEstimatedHours(),
+                    'effective_estimated_hours' => $project->fresh()->effectiveEstimatedHours(),
+                    'total_logged_hours' => $project->fresh()->totalLoggedHours(),
+                    'formatted_total_logged_time' => $project->fresh()->formattedTotalLoggedTime(),
+                    'burn_rate' => $project->fresh()->burnRatePercent(),
+                    'budget_status' => $project->fresh()->budgetStatus(),
+                    'remaining_hours' => $project->fresh()->remainingHours(),
+                    'over_budget_hours' => $project->fresh()->overBudgetHours(),
+                ],
+            ]);
+        }
+
+        return redirect()->route('projects.show', $project)->with('status', 'Estimasi waktu tugas berhasil diperbarui.');
+    }
+
+    public function updateBudget(Request $request, Project $project): JsonResponse|RedirectResponse
+    {
+        if (auth()->check() && auth()->user()->isStaff()) {
+            abort(403, 'Akses ditolak. Hanya Admin atau Reviewer yang dapat mengubah kuota proyek.');
+        }
+
+        $validated = $request->validate([
+            'estimated_hours' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+        ]);
+
+        $project->update([
+            'estimated_hours' => $validated['estimated_hours'] ?? 0,
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Target kuota proyek berhasil diperbarui.',
+                'project_budget' => [
+                    'project_budget_hours' => $project->fresh()->projectBudgetHours(),
+                    'tasks_total_estimated_hours' => $project->fresh()->tasksTotalEstimatedHours(),
+                    'effective_estimated_hours' => $project->fresh()->effectiveEstimatedHours(),
+                    'total_logged_hours' => $project->fresh()->totalLoggedHours(),
+                    'formatted_total_logged_time' => $project->fresh()->formattedTotalLoggedTime(),
+                    'burn_rate' => $project->fresh()->burnRatePercent(),
+                    'budget_status' => $project->fresh()->budgetStatus(),
+                    'remaining_hours' => $project->fresh()->remainingHours(),
+                    'over_budget_hours' => $project->fresh()->overBudgetHours(),
+                ],
+            ]);
+        }
+
+        return redirect()->route('projects.show', $project)->with('status', 'Target kuota proyek berhasil diperbarui.');
     }
 }

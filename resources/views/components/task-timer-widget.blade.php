@@ -255,7 +255,7 @@
     bottom: 20px;
     right: 24px;
     z-index: 99999;
-    font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     pointer-events: none;
 }
 .konsulin-timer-wrapper * {
@@ -315,7 +315,7 @@
 .timer-badge-key {
     background: #1e3e62;
     color: #93c5fd;
-    font-family: ui-monospace, monospace;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     font-size: 10px;
     padding: 1px 5px;
     border-radius: 4px;
@@ -339,7 +339,7 @@
     color: #475569;
 }
 .timer-elapsed-mono {
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
     color: #34d399;
     letter-spacing: 0.04em;
@@ -805,7 +805,7 @@ window.KonsulinTimer = (function() {
 
                 // Style pip window with Deep Navy theme
                 pipWindow.document.body.style.margin = '0';
-                pipWindow.document.body.style.fontFamily = "'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+                pipWindow.document.body.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
                 pipWindow.document.body.style.background = '#0b192c';
                 pipWindow.document.body.style.color = '#ffffff';
                 pipWindow.document.body.style.display = 'flex';
@@ -843,7 +843,7 @@ window.KonsulinTimer = (function() {
         pipWindow.document.body.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
                 <div style="display:flex; align-items:center; gap: 6px; overflow:hidden;">
-                    <span style="background:#1e3e62; color:#93c5fd; font-family:monospace; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px;">${taskKey}</span>
+                    <span style="background:#1e3e62; color:#93c5fd; font-family:Inter, sans-serif; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px;">${taskKey}</span>
                     <span style="font-size:11px; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${clientName}</span>
                 </div>
                 <div style="display:inline-flex; align-items:center; gap: 5px;">
@@ -857,7 +857,7 @@ window.KonsulinTimer = (function() {
             </div>
 
             <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #1e3e62; padding-top:8px;">
-                <div style="font-family:monospace; font-size:20px; font-weight:800; color:#34d399; letter-spacing:0.05em;">
+                <div style="font-family:Inter, sans-serif; font-size:20px; font-weight:800; color:#34d399; letter-spacing:0.05em;">
                     ${elapsedStr}
                 </div>
                 <button id="pipStopBtn" style="background:#dc2626; color:#ffffff; border:none; border-radius:6px; padding:6px 12px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit;">

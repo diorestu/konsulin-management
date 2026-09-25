@@ -14,6 +14,7 @@ class ProjectTask extends Model
         'status',
         'review_status',
         'progress_percent',
+        'estimated_hours',
         'due_date',
         'reviewed_at',
         'notes',
@@ -26,6 +27,7 @@ class ProjectTask extends Model
             'due_date' => 'date',
             'reviewed_at' => 'datetime',
             'progress_percent' => 'integer',
+            'estimated_hours' => 'decimal:2',
         ];
     }
 
@@ -56,7 +58,78 @@ class ProjectTask extends Model
 
     public function totalDurationSeconds(): int
     {
+        if ($this->relationLoaded('timeLogs')) {
+            return (int) $this->timeLogs->where('status', 'completed')->sum('duration_seconds');
+        }
+
         return (int) $this->timeLogs()->where('status', 'completed')->sum('duration_seconds');
+    }
+
+    public function actualLoggedHours(): float
+    {
+        return round($this->totalDurationSeconds() / 3600, 2);
+    }
+
+    public function actualLoggedMinutes(): int
+    {
+        return (int) round($this->totalDurationSeconds() / 60);
+    }
+
+    public function formattedActualLoggedTime(): string
+    {
+        $sec = $this->totalDurationSeconds();
+        if ($sec === 0) {
+            return '0m';
+        }
+        $hours = floor($sec / 3600);
+        $mins = floor(($sec % 3600) / 60);
+        if ($hours > 0 && $mins > 0) {
+            return "{$hours}j {$mins}m";
+        } elseif ($hours > 0) {
+            return "{$hours}j";
+        }
+        return "{$mins}m";
+    }
+
+    public function burnRatePercent(): int
+    {
+        $estimate = (float) ($this->estimated_hours ?? 0);
+        if ($estimate <= 0) {
+            return 0;
+        }
+
+        return (int) round(($this->actualLoggedHours() / $estimate) * 100);
+    }
+
+    public function budgetStatus(): string
+    {
+        $estimate = (float) ($this->estimated_hours ?? 0);
+        if ($estimate <= 0) {
+            return 'no_estimate';
+        }
+
+        $actual = $this->actualLoggedHours();
+        if ($actual > $estimate) {
+            return 'over_budget';
+        }
+
+        if ($this->burnRatePercent() >= 80) {
+            return 'warning';
+        }
+
+        return 'on_track';
+    }
+
+    public function remainingHours(): float
+    {
+        $estimate = (float) ($this->estimated_hours ?? 0);
+        return max(0, round($estimate - $this->actualLoggedHours(), 2));
+    }
+
+    public function overBudgetHours(): float
+    {
+        $estimate = (float) ($this->estimated_hours ?? 0);
+        return max(0, round($this->actualLoggedHours() - $estimate, 2));
     }
 
     public function activeTimeLogFor(?int $userId = null)

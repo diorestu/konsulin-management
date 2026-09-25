@@ -193,6 +193,22 @@
                                                 <span class="font-medium text-slate-700">{{ $task->project->name ?? 'Proyek' }}</span>
                                                 <span>·</span>
                                                 <span>{{ $task->project->client->name ?? 'Klien' }}</span>
+                                                @if((float)$task->estimated_hours > 0)
+                                                    @php
+                                                        $tStatus = $task->budgetStatus();
+                                                        $tBurn = $task->burnRatePercent();
+                                                    @endphp
+                                                    <span>·</span>
+                                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.2 rounded border {{ $tStatus === 'over_budget' ? 'bg-rose-50 text-rose-700 border-rose-200' : ($tStatus === 'warning' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200') }}" title="Realisasi {{ $task->formattedActualLoggedTime() }} dari {{ (float)$task->estimated_hours }} jam (Burn: {{ $tBurn }}%)">
+                                                        <x-heroicon-o-clock class="w-3 h-3 text-slate-400" />
+                                                        <span>{{ $task->formattedActualLoggedTime() }} / {{ (float)$task->estimated_hours }}j</span>
+                                                        @if($tStatus === 'over_budget')
+                                                            <span class="font-bold text-rose-700">Over</span>
+                                                        @elseif($tStatus === 'warning')
+                                                            <span class="font-bold text-amber-700">{{ $tBurn }}%</span>
+                                                        @endif
+                                                    </span>
+                                                @endif
                                             </div>
                                         </td>
                                         <td class="py-2.5 px-2.5 whitespace-nowrap">
@@ -374,7 +390,7 @@
                             <button
                                 type="button"
                                 onclick="window.KonsulinTimer && window.KonsulinTimer.openStopModal()"
-                                class="button small !py-1 !px-2.5 !text-[11px] !bg-rose-700 hover:!bg-rose-800 flex items-center justify-center gap-1 text-white cursor-pointer"
+                                class="button danger small !py-1 !px-2.5 !text-[11px] flex-1 flex items-center justify-center gap-1 cursor-pointer"
                             >
                                 <x-heroicon-s-stop class="w-3 h-3" />
                                 <span>Selesai & Simpan</span>
@@ -388,7 +404,7 @@
                         <button
                             type="button"
                             onclick="window.KonsulinTimer && window.KonsulinTimer.openTaskPickerModal()"
-                            class="button small !py-1.5 !px-3 !text-xs !bg-[#0b192c] text-white mt-2.5 inline-flex items-center gap-1.5 cursor-pointer"
+                            class="button small !py-1.5 !px-3 !text-xs mt-2.5 inline-flex items-center gap-1.5 cursor-pointer"
                         >
                             <x-heroicon-o-play class="w-3.5 h-3.5 text-emerald-400" />
                             <span>Mulai Sesi Waktu Kerja</span>
@@ -758,6 +774,22 @@
                                                 @if($project->category)
                                                     <span class="text-slate-300">•</span>
                                                     <span class="text-[10px] px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded">{{ $project->category->name }}</span>
+                                                @endif
+                                                @php
+                                                    $pEffective = $project->effectiveEstimatedHours();
+                                                    $pStatus = $project->budgetStatus();
+                                                @endphp
+                                                @if($pEffective > 0)
+                                                    <span class="text-slate-300">•</span>
+                                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.2 rounded border {{ $pStatus === 'over_budget' ? 'bg-rose-50 text-rose-700 border-rose-200' : ($pStatus === 'warning' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200') }}" title="Realisasi {{ $project->formattedTotalLoggedTime() }} dari {{ (float)$pEffective }} jam (Burn: {{ $project->burnRatePercent() }}%)">
+                                                        <x-heroicon-o-clock class="w-3 h-3 text-slate-400" />
+                                                        <span>{{ $project->formattedTotalLoggedTime() }} / {{ (float)$pEffective }}j</span>
+                                                        @if($pStatus === 'over_budget')
+                                                            <span class="font-bold text-rose-700">Over</span>
+                                                        @elseif($pStatus === 'warning')
+                                                            <span class="font-bold text-amber-700">{{ $project->burnRatePercent() }}%</span>
+                                                        @endif
+                                                    </span>
                                                 @endif
                                             </span>
                                         </td>

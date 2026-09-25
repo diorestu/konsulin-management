@@ -1,39 +1,29 @@
 <x-layouts.app :title="$project->name . ' : Jira Board : Konsulin Manager'">
-    <!-- Topbar & Project Header -->
-    <div class="topbar">
-        <div>
-            <div class="flex items-center gap-2 mb-1.5">
-                <a href="{{ route('projects.index') }}" class="text-xs font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1">
-                    <x-heroicon-o-arrow-left class="w-3.5 h-3.5" />
-                    <span>Projects</span>
-                </a>
-                <span class="text-xs text-slate-300">/</span>
-                <span class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                    PRJ-{{ str_pad($project->id, 3, '0', STR_PAD_LEFT) }}
-                </span>
-                <span class="label navy text-xs">{{ $project->service_type }}</span>
-                <span class="label {{ in_array($project->priority, ['high', 'urgent']) ? 'warning' : 'navy' }}">
-                    {{ $project->priority }}
-                </span>
+    <header class="project-detail-header">
+        <div class="min-w-0">
+            <a href="{{ route('projects.index') }}" class="project-back-link">
+                <x-heroicon-o-arrow-left class="w-4 h-4" />
+                <span>Projects</span>
+            </a>
+            <div class="flex items-center gap-2 mt-3 min-w-0">
+                <h1 class="truncate">{{ $project->name }}</h1>
+                <span class="label navy text-xs shrink-0">{{ $project->service_type }}</span>
             </div>
-            <h1>{{ $project->name }}</h1>
-            <p class="muted">
-                {{ $project->client->name }} · {{ $project->category?->name ?? 'Uncategorized' }} · Due: {{ $project->due_date?->format('d M Y') ?? '-' }}
+            <p class="project-detail-meta">
+                <a href="{{ route('clients.show', $project->client) }}" class="font-semibold text-slate-700 hover:text-[#0b192c]">{{ $project->client->name }}</a>
+                <span aria-hidden="true">·</span>
+                <span>PRJ-{{ str_pad($project->id, 3, '0', STR_PAD_LEFT) }}</span>
+                <span aria-hidden="true">·</span>
+                <span>{{ $project->due_date ? 'Tenggat ' . $project->due_date->format('d M Y') : 'Tanpa tenggat' }}</span>
             </p>
         </div>
-        <div class="flex items-center gap-2">
-            <a class="button secondary small" href="{{ route('projects.index') }}">
-                <x-heroicon-o-arrow-left class="w-4 h-4" />
-                <span>Back</span>
-            </a>
-            @if(!auth()->check() || !auth()->user()->isStaff() || auth()->user()->can('manage tasks'))
-                <button class="button small" type="button" onclick="document.getElementById('taskFormModal').showModal()">
-                    <x-heroicon-o-plus class="w-4 h-4" />
-                    <span>New Issue / Task</span>
-                </button>
-            @endif
-        </div>
-    </div>
+        @if(!auth()->check() || !auth()->user()->isStaff() || auth()->user()->can('manage tasks'))
+            <button class="button project-primary-action" type="button" onclick="document.getElementById('taskFormModal').showModal()">
+                <x-heroicon-o-plus class="w-4 h-4" />
+                <span>Tambah tugas</span>
+            </button>
+        @endif
+    </header>
 
     <!-- Improved Jira Project Stats Bar -->
     <section class="stats" data-animate-children>
@@ -118,29 +108,72 @@
             </div>
         </div>
 
-        <!-- Stat 3: Staff Logged Work Time (Connected to Time Tracker!) -->
-        <div class="stat">
+        <!-- Stat 3: Staff Logged Work Time & Budget Burn Rate -->
+        @php
+            $budgetStatus = $project->budgetStatus();
+            $effectiveBudget = $project->effectiveEstimatedHours();
+            $burnRate = $project->burnRatePercent();
+            $isOverBudget = $budgetStatus === 'over_budget';
+            $isWarning = $budgetStatus === 'warning';
+        @endphp
+        <div class="stat {{ $isOverBudget ? 'border-rose-300 bg-rose-50/20' : ($isWarning ? 'border-amber-300 bg-amber-50/20' : '') }}" id="statProjectBudgetCard">
             <div class="flex items-center justify-between mb-2">
-                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Logged Work Time</span>
-                <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Work Time & Budget</span>
+                <div class="w-7 h-7 rounded-lg {{ $isOverBudget ? 'bg-rose-100 text-rose-700 border-rose-200' : ($isWarning ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-50 text-indigo-700 border-indigo-100') }} flex items-center justify-center border" id="statBudgetIconContainer">
                     <x-heroicon-o-clock class="w-4 h-4" />
                 </div>
             </div>
-            <div class="flex items-baseline gap-2 mb-1.5">
-                <strong class="text-2xl font-bold tracking-tight text-slate-900 font-mono">
+            <div class="flex items-baseline gap-2 mb-1.5 flex-wrap">
+                <strong class="text-2xl font-bold tracking-tight text-slate-900 font-mono" id="statLoggedTimeValue">
                     {{ $project->formattedTotalLoggedTime() }}
                 </strong>
-                <span class="text-xs text-slate-500 font-medium">Tercatat</span>
+                @if ($effectiveBudget > 0)
+                    <span class="text-xs text-slate-500 font-medium font-mono" id="statBudgetTargetValue">
+                        / {{ (float) $effectiveBudget }}j
+                    </span>
+                @else
+                    <span class="text-xs text-slate-400 font-medium" id="statBudgetTargetValue">
+                        (Tanpa Kuota)
+                    </span>
+                @endif
             </div>
-            <div class="p-1.5 rounded-lg bg-slate-50 border border-slate-200 mb-2 flex items-center justify-between text-[11px]">
-                <span class="text-slate-600 font-medium flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>Staff Timer</span>
-                </span>
-                <span class="font-bold text-slate-900 font-mono">{{ $project->staff->count() }} PIC Ditugaskan</span>
-            </div>
-            <div class="text-[11px] text-slate-500 truncate">
-                Lacak jam kerja real-time tim konsultan
+
+            @if ($effectiveBudget > 0)
+                <!-- Burn Rate Progress Bar -->
+                <div class="w-full bg-slate-200/80 rounded-full h-1.5 mb-2 overflow-hidden">
+                    <div
+                        id="statBurnProgressBar"
+                        class="h-1.5 rounded-full transition-all duration-500 {{ $isOverBudget ? 'bg-rose-600' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-600') }}"
+                        style="width: {{ min(100, $burnRate) }}%"
+                    ></div>
+                </div>
+                <div class="p-1.5 rounded-lg {{ $isOverBudget ? 'bg-rose-50 border-rose-200 text-rose-800' : ($isWarning ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-700') }} border mb-2 flex items-center justify-between text-[11px]" id="statBurnInfoBox">
+                    <span class="font-medium flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full {{ $isOverBudget ? 'bg-rose-600 animate-pulse' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-500') }}" id="statBurnDot"></span>
+                        <span id="statBurnRateBadgeText">Burn Rate {{ $burnRate }}%</span>
+                    </span>
+                    <span class="font-bold font-mono" id="statRemainingHoursText">
+                        @if ($isOverBudget)
+                            Over +{{ $project->overBudgetHours() }}j
+                        @else
+                            Sisa {{ $project->remainingHours() }}j
+                        @endif
+                    </span>
+                </div>
+            @else
+                <div class="p-1.5 rounded-lg bg-slate-50 border border-slate-200 mb-2 flex items-center justify-between text-[11px]" id="statBurnInfoBox">
+                    <span class="text-slate-600 font-medium flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-slate-400" id="statBurnDot"></span>
+                        <span id="statBurnRateBadgeText">Estimasi Kuota</span>
+                    </span>
+                    <span class="font-medium text-slate-500" id="statRemainingHoursText">Belum Diset</span>
+                </div>
+            @endif
+
+            <div class="text-[11px] text-slate-500 truncate" id="statBudgetSubtext">
+                <button type="button" onclick="switchProjectView('budget')" class="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer">
+                    Rincian realisasi & budget &rarr;
+                </button>
             </div>
         </div>
 
@@ -178,64 +211,24 @@
     </section>
 
     <!-- Main Content & Jira Board -->
-    <div class="grid" style="grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.8fr); gap: 20px;">
+    <div class="project-detail-layout grid" style="grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.8fr); gap: 20px;">
         <div>
-            <!-- Team Composition (Reviewer, PIC Accounting, PIC Tax) -->
-            <div class="panel p-4 mb-4">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <h2 style="margin: 0; font-size: 14px;">Team Composition & Roles</h2>
-                        <span class="text-xs text-slate-400 font-medium">(1 Client · 1 Reviewer · {{ $project->accountingStaff->count() }} PIC Accounting · {{ $project->taxStaff->count() }} PIC Tax)</span>
-                    </div>
+            <section class="project-team-strip" aria-label="Tim proyek">
+                <span class="project-team-label">Tim proyek</span>
+                <div class="flex items-center -space-x-2">
+                    @php $reviewer = $project->reviewer ?? $project->creator; @endphp
+                    @if ($reviewer)
+                        <span class="project-detail-avatar bg-slate-900 text-white" title="Reviewer: {{ $reviewer->name }}" aria-label="Reviewer: {{ $reviewer->name }}">{{ \Illuminate\Support\Str::of($reviewer->name)->explode(' ')->filter()->take(2)->map(fn ($part) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($part, 0, 1)))->join('') }}</span>
+                    @endif
+                    @foreach ($project->accountingStaff as $member)
+                        <span class="project-detail-avatar bg-blue-100 text-blue-800" title="PIC Accounting: {{ $member->name }}" aria-label="PIC Accounting: {{ $member->name }}">{{ \Illuminate\Support\Str::of($member->name)->explode(' ')->filter()->take(2)->map(fn ($part) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($part, 0, 1)))->join('') }}</span>
+                    @endforeach
+                    @foreach ($project->taxStaff as $member)
+                        <span class="project-detail-avatar bg-amber-100 text-amber-800" title="PIC Tax: {{ $member->name }}" aria-label="PIC Tax: {{ $member->name }}">{{ \Illuminate\Support\Str::of($member->name)->explode(' ')->filter()->take(2)->map(fn ($part) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($part, 0, 1)))->join('') }}</span>
+                    @endforeach
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <!-- Reviewer Card -->
-                    <div class="p-3 rounded-lg bg-slate-900 text-white shadow-sm">
-                        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                            <span>Reviewer (1 Orang)</span>
-                        </div>
-                        <div class="font-bold text-xs text-white">{{ $project->reviewer?->name ?? $project->creator?->name ?? '-' }}</div>
-                        <div class="text-[11px] text-slate-300 truncate">{{ $project->reviewer?->email ?? '-' }}</div>
-                    </div>
-
-                    <!-- PIC Accounting Card -->
-                    <div class="p-3 rounded-lg bg-blue-50/70 border border-blue-200">
-                        <div class="text-[10px] uppercase font-bold text-blue-700 tracking-wider mb-1 flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                            <span>PIC Accounting ({{ $project->accountingStaff->count() }})</span>
-                        </div>
-                        <div class="space-y-1">
-                            @forelse($project->accountingStaff as $acc)
-                                <div class="text-xs font-semibold text-slate-900 flex items-center justify-between">
-                                    <span>{{ $acc->name }}</span>
-                                    <span class="text-[10px] text-blue-700 font-normal">{{ $acc->position ?? 'Accounting' }}</span>
-                                </div>
-                            @empty
-                                <div class="text-xs text-slate-400 italic">Belum ada PIC Accounting</div>
-                            @endforelse
-                        </div>
-                    </div>
-
-                    <!-- PIC Tax Card -->
-                    <div class="p-3 rounded-lg bg-amber-50/70 border border-amber-200">
-                        <div class="text-[10px] uppercase font-bold text-amber-800 tracking-wider mb-1 flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-                            <span>PIC Tax ({{ $project->taxStaff->count() }})</span>
-                        </div>
-                        <div class="space-y-1">
-                            @forelse($project->taxStaff as $tax)
-                                <div class="text-xs font-semibold text-slate-900 flex items-center justify-between">
-                                    <span>{{ $tax->name }}</span>
-                                    <span class="text-[10px] text-amber-800 font-normal">{{ $tax->position ?? 'Tax' }}</span>
-                                </div>
-                            @empty
-                                <div class="text-xs text-slate-400 italic">Belum ada PIC Tax</div>
-                            @endforelse
-                        </div>
-                    </div>
-                </div>
-            </div>
+                <span class="text-xs text-slate-500">{{ $project->tasks->where('status', 'in_progress')->count() }} tugas berjalan</span>
+            </section>
 
             <!-- View Switcher Tabs: Board vs List vs Dokumen Klien -->
             <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-2">
@@ -247,7 +240,7 @@
                         class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0b192c] text-white flex items-center gap-1.5 transition cursor-pointer"
                     >
                         <x-heroicon-o-squares-2x2 class="w-4 h-4" />
-                        <span>Kanban Board</span>
+                        <span>Board</span>
                     </button>
                     <button
                         type="button"
@@ -256,7 +249,7 @@
                         class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer"
                     >
                         <x-heroicon-o-queue-list class="w-4 h-4" />
-                        <span>List / Table View</span>
+                        <span>Daftar</span>
                     </button>
                     <button
                         type="button"
@@ -265,7 +258,7 @@
                         class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer"
                     >
                         <x-heroicon-o-document-check class="w-4 h-4" />
-                        <span>Dokumen Masukan (Vault)</span>
+                        <span>Dokumen</span>
                         @php
                             $totalDocs = $project->documents->count();
                             $verifiedDocs = $project->documents->where('status', 'verified')->count();
@@ -275,13 +268,27 @@
                             {{ $verifiedDocs }}/{{ $totalDocs }}
                         </span>
                     </button>
+                    <button
+                        type="button"
+                        id="tabBudgetBtn"
+                        onclick="switchProjectView('budget')"
+                        class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                        <x-heroicon-o-chart-bar class="w-4 h-4" />
+                        <span>Budget</span>
+                        @if ($effectiveBudget > 0)
+                            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full {{ $isOverBudget ? 'bg-rose-100 text-rose-800 border border-rose-200' : ($isWarning ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200') }}" id="tabBudgetBadge">
+                                {{ $burnRate }}%
+                            </span>
+                        @endif
+                    </button>
                 </div>
-                <span class="text-xs text-slate-400">Jira Workflow Engine</span>
+                <span class="text-xs text-slate-400">{{ $project->tasks->count() }} tugas</span>
             </div>
 
             <!-- 1. JIRA KANBAN BOARD VIEW -->
-            <div id="jiraBoardView">
-                <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; align-items: start;">
+            <div id="jiraBoardView" class="kanban-workspace" tabindex="0" aria-label="Kanban proyek">
+                <div class="kanban-lanes">
                     @php
                         $columns = [
                             ['status' => 'not_started', 'label' => 'To Do', 'color' => 'slate', 'badge' => 'bg-slate-100 text-slate-700 border-slate-200'],
@@ -296,7 +303,7 @@
                         @php
                             $colTasks = $project->tasks->where('status', $col['status']);
                         @endphp
-                        <div class="bg-slate-100/70 border border-slate-200/80 rounded-xl p-2.5">
+                        <section class="kanban-lane bg-slate-100/70 border border-slate-200/80 rounded-xl p-3">
                             <!-- Column Header -->
                             <div class="flex items-center justify-between mb-2.5 px-1">
                                 <div class="flex items-center gap-1.5">
@@ -308,9 +315,9 @@
                             </div>
 
                             <!-- Task Cards in this column -->
-                            <div class="space-y-2.5 min-h-[140px]" id="kanban-col-{{ $col['status'] }}">
+                            <div class="kanban-lane-tasks space-y-2.5" id="kanban-col-{{ $col['status'] }}">
                                 @foreach ($colTasks as $task)
-                                    <div class="bg-white border border-slate-200 rounded-lg p-2.5 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all group task-card-item" id="task-card-{{ $task->id }}" data-task-id="{{ $task->id }}" data-status="{{ $task->status }}">
+                                    <article class="bg-white border border-slate-200 rounded-lg p-3 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all group task-card-item" id="task-card-{{ $task->id }}" data-task-id="{{ $task->id }}" data-status="{{ $task->status }}">
                                         <!-- Issue Key, Status Badges & Priority -->
                                         <div class="flex items-center justify-between gap-1 mb-1.5">
                                             <span class="text-[10.5px] font-mono font-semibold text-slate-500">
@@ -360,8 +367,8 @@
                                             </p>
                                         @endif
 
-                                        <!-- Quality Checklist Button Indicator -->
-                                        <div class="mb-1.5 flex items-center justify-between gap-1">
+                                        <!-- Quality Checklist & Time Budget Buttons -->
+                                        <div class="mb-1.5 flex items-center justify-between gap-1 flex-wrap">
                                             <button
                                                 type="button"
                                                 onclick="openQualityGateModal({{ $task->id }})"
@@ -370,6 +377,28 @@
                                             >
                                                 <x-heroicon-o-clipboard-document-check class="w-3.5 h-3.5 text-indigo-600" />
                                                 <span>{{ $task->checklists->where('is_checked', true)->count() }}/{{ $task->checklists->count() }} QC</span>
+                                            </button>
+
+                                            <!-- Task Time Budget Pill Button -->
+                                            @php
+                                                $tBudgetStatus = $task->budgetStatus();
+                                                $tEstimate = (float) ($task->estimated_hours ?? 0);
+                                                $tBurn = $task->burnRatePercent();
+                                            @endphp
+                                            <button
+                                                type="button"
+                                                id="task-budget-pill-{{ $task->id }}"
+                                                onclick="openTaskBudgetModal({{ $task->id }}, '{{ addslashes($task->title) }}', {{ $tEstimate }}, {{ $task->actualLoggedHours() }}, {{ $tBurn }}, '{{ $tBudgetStatus }}')"
+                                                class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border transition cursor-pointer {{ $tBudgetStatus === 'over_budget' ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : ($tBudgetStatus === 'warning' ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100' : ($tEstimate > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100')) }}"
+                                                title="Realisasi {{ $task->formattedActualLoggedTime() }} / {{ $tEstimate }} jam (Burn: {{ $tBurn }}%) · Klik untuk ubah alokasi"
+                                            >
+                                                <x-heroicon-o-clock class="w-3.5 h-3.5 text-slate-500" />
+                                                <span class="font-mono" id="task-budget-pill-text-{{ $task->id }}">{{ $task->formattedActualLoggedTime() }} / {{ $tEstimate }}j</span>
+                                                @if ($tBudgetStatus === 'over_budget')
+                                                    <span class="text-[8px] font-bold px-1 py-0.2 rounded bg-rose-200/80 text-rose-800" id="task-budget-pill-badge-{{ $task->id }}">Over</span>
+                                                @elseif ($tBudgetStatus === 'warning')
+                                                    <span class="text-[8px] font-bold px-1 py-0.2 rounded bg-amber-200/80 text-amber-800" id="task-budget-pill-badge-{{ $task->id }}">{{ $tBurn }}%</span>
+                                                @endif
                                             </button>
                                         </div>
 
@@ -463,14 +492,14 @@
                                                 </select>
                                             </form>
                                         </div>
-                                    </div>
+                                    </article>
                                 @endforeach
 
-                                <div class="text-center py-6 text-[11px] text-slate-400 border border-dashed border-slate-200 rounded-lg col-empty-placeholder" id="empty-col-{{ $col['status'] }}" style="{{ $colTasks->count() > 0 ? 'display: none;' : '' }}">
+                                <div class="kanban-empty-state text-center text-[11px] text-slate-400 border border-dashed border-slate-200 rounded-lg col-empty-placeholder" id="empty-col-{{ $col['status'] }}" style="{{ $colTasks->count() > 0 ? 'display: none;' : '' }}">
                                     No tasks in {{ $col['label'] }}
                                 </div>
                             </div>
-                        </div>
+                        </section>
                     @endforeach
                 </div>
             </div>
@@ -780,6 +809,300 @@
                 </section>
             </div>
 
+            <!-- 4. PROJECT BUDGETING & WORK TIME REALIZATION VIEW -->
+            <div id="jiraBudgetView" style="display: none;">
+                <section class="panel">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <h2 style="margin: 0; font-size: 15px;">Realisasi Jam Kerja vs Estimasi (Project Budgeting)</h2>
+                                <span class="label {{ $isOverBudget ? 'danger' : ($isWarning ? 'warning' : 'navy') }} text-xs" id="budgetTabMainStatusBadge">
+                                    {{ $isOverBudget ? 'Over-Budget' : ($isWarning ? 'Mendekati Batas (>=80%)' : ($effectiveBudget > 0 ? 'On-Track' : 'Tanpa Kuota')) }}
+                                </span>
+                            </div>
+                            <p class="muted text-xs">
+                                Evaluasi efisiensi waktu kerja staf, rasio burn rate terhadap target kuota proyek, serta mitigasi resiko pengerjaan berlebih.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            @if (!auth()->check() || auth()->user()->isAdmin() || auth()->user()->isReviewer())
+                                <button
+                                    type="button"
+                                    onclick="openEditProjectBudgetModal()"
+                                    class="button secondary small inline-flex items-center gap-1.5 text-xs font-semibold"
+                                    title="Ubah target alokasi kuota waktu untuk proyek ini"
+                                >
+                                    <x-heroicon-o-adjustments-horizontal class="w-3.5 h-3.5 text-slate-500" />
+                                    <span>Set Kuota Proyek</span>
+                                </button>
+                            @endif
+                            <button
+                                type="button"
+                                onclick="document.getElementById('taskFormModal').showModal()"
+                                class="button small inline-flex items-center gap-1.5 text-xs font-semibold"
+                            >
+                                <x-heroicon-o-plus class="w-3.5 h-3.5" />
+                                <span>Tambah Tugas</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4 Summary Stat Cards Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                        <!-- Card 1: Target Kuota Proyek -->
+                        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Target Kuota Proyek</span>
+                                <x-heroicon-o-flag class="w-4 h-4 text-slate-400" />
+                            </div>
+                            <div class="flex items-baseline gap-1.5 mb-1">
+                                <strong class="text-xl font-bold font-mono text-slate-900" id="budgetViewProjectBudget">
+                                    {{ (float) $project->projectBudgetHours() }}j
+                                </strong>
+                                <span class="text-xs text-slate-500">disepakati</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 truncate" id="budgetViewTasksTotalEstimate">
+                                Akumulasi tugas: {{ (float) $project->tasksTotalEstimatedHours() }} jam
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Realisasi Waktu Tercatat -->
+                        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Realisasi Jam Kerja</span>
+                                <x-heroicon-o-clock class="w-4 h-4 text-indigo-500" />
+                            </div>
+                            <div class="flex items-baseline gap-1.5 mb-1">
+                                <strong class="text-xl font-bold font-mono text-slate-900" id="budgetViewTotalLogged">
+                                    {{ $project->formattedTotalLoggedTime() }}
+                                </strong>
+                                <span class="text-xs text-slate-500" id="budgetViewDecimalHours">({{ $project->totalLoggedHours() }}j)</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 truncate">
+                                Dari seluruh log timer staf aktif & selesai
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Burn Rate Efektif -->
+                        <div class="p-3.5 rounded-xl {{ $isOverBudget ? 'bg-rose-50 border-rose-200' : ($isWarning ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200') }}" id="budgetViewBurnBox">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10.5px] font-bold {{ $isOverBudget ? 'text-rose-700' : ($isWarning ? 'text-amber-800' : 'text-slate-500') }} uppercase tracking-wider">Burn Rate Efektif</span>
+                                <x-heroicon-o-fire class="w-4 h-4 {{ $isOverBudget ? 'text-rose-600' : ($isWarning ? 'text-amber-600' : 'text-slate-400') }}" />
+                            </div>
+                            <div class="flex items-baseline gap-1.5 mb-1">
+                                <strong class="text-xl font-bold font-mono {{ $isOverBudget ? 'text-rose-700' : ($isWarning ? 'text-amber-900' : 'text-slate-900') }}" id="budgetViewBurnRate">
+                                    {{ $burnRate }}%
+                                </strong>
+                                <span class="text-[10.5px] font-bold px-1.5 py-0.2 rounded {{ $isOverBudget ? 'bg-rose-200/80 text-rose-900' : ($isWarning ? 'bg-amber-200/80 text-amber-900' : 'bg-emerald-100 text-emerald-800') }}" id="budgetViewBurnStatusPill">
+                                    {{ $isOverBudget ? 'Over-Budget' : ($isWarning ? 'Waspada' : 'Aman') }}
+                                </span>
+                            </div>
+                            <div class="text-[11px] {{ $isOverBudget ? 'text-rose-600 font-medium' : ($isWarning ? 'text-amber-700 font-medium' : 'text-slate-500') }} truncate" id="budgetViewBurnRateSubtext">
+                                Target efisiensi: &le; 100%
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Sisa / Deviasi Waktu -->
+                        <div class="p-3.5 rounded-xl {{ $isOverBudget ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200' }}" id="budgetViewRemainingBox">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10.5px] font-bold {{ $isOverBudget ? 'text-rose-700' : 'text-slate-500' }} uppercase tracking-wider" id="budgetViewRemainingTitle">
+                                    {{ $isOverBudget ? 'Kelebihan Jam (Over)' : 'Sisa Kuota Waktu' }}
+                                </span>
+                                <x-heroicon-o-scale class="w-4 h-4 {{ $isOverBudget ? 'text-rose-600' : 'text-slate-400' }}" />
+                            </div>
+                            <div class="flex items-baseline gap-1.5 mb-1">
+                                <strong class="text-xl font-bold font-mono {{ $isOverBudget ? 'text-rose-700' : 'text-emerald-700' }}" id="budgetViewRemainingHours">
+                                    {{ $isOverBudget ? '+' . $project->overBudgetHours() . 'j' : $project->remainingHours() . 'j' }}
+                                </strong>
+                                <span class="text-xs text-slate-500">tersisa</span>
+                            </div>
+                            <div class="text-[11px] {{ $isOverBudget ? 'text-rose-600 font-semibold' : 'text-slate-500' }} truncate" id="budgetViewRemainingSubtext">
+                                {{ $isOverBudget ? 'Perlu penyesuaian scope / add-on' : 'Kapasitas pengerjaan masih tersedia' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Burn Rate Bar Container -->
+                    @if ($effectiveBudget > 0)
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 mb-5" id="budgetViewMeterContainer">
+                            <div class="flex items-center justify-between text-xs mb-1.5">
+                                <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full {{ $isOverBudget ? 'bg-rose-600' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-500') }}" id="budgetViewMeterDot"></span>
+                                    <span>Meter Penggunaan Kuota Waktu</span>
+                                </span>
+                                <span class="font-mono text-slate-600 font-medium" id="budgetViewMeterSubtext">
+                                    {{ $project->totalLoggedHours() }} jam dari batas {{ (float) $effectiveBudget }} jam
+                                </span>
+                            </div>
+                            <div class="relative w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                                <div
+                                    id="budgetViewProgressBar"
+                                    class="h-3 rounded-full transition-all duration-500 {{ $isOverBudget ? 'bg-rose-600' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-600') }}"
+                                    style="width: {{ min(100, $burnRate) }}%"
+                                ></div>
+                            </div>
+                            <div class="flex items-center justify-between text-[10.5px] text-slate-400 mt-1 font-mono">
+                                <span>0%</span>
+                                <span>80% (Batas Waspada)</span>
+                                <span>100% (Target Disepakati)</span>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Detailed Tasks Budgeting Table -->
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10.5px] tracking-wider">
+                                    <th class="py-2.5 px-3">Tugas & PIC</th>
+                                    <th class="py-2.5 px-3">Status</th>
+                                    <th class="py-2.5 px-3">Target Estimasi</th>
+                                    <th class="py-2.5 px-3">Realisasi Jam</th>
+                                    <th class="py-2.5 px-3">Burn Rate</th>
+                                    <th class="py-2.5 px-3">Status Anggaran</th>
+                                    <th class="py-2.5 px-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100" id="taskBudgetTableBody">
+                                @forelse ($project->tasks as $t)
+                                    @php
+                                        $tEstimate = (float) ($t->estimated_hours ?? 0);
+                                        $tActual = $t->actualLoggedHours();
+                                        $tBurn = $t->burnRatePercent();
+                                        $tStatus = $t->budgetStatus();
+                                        $tOver = $tStatus === 'over_budget';
+                                        $tWarn = $tStatus === 'warning';
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/60 transition-colors" id="budget-table-row-{{ $t->id }}">
+                                        <td class="py-3 px-3">
+                                            <div class="font-bold text-slate-900 leading-snug">{{ $t->title }}</div>
+                                            <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                                                <span class="font-mono text-[10.5px] text-slate-400">TSK-{{ $t->id }}</span>
+                                                <span>·</span>
+                                                <span>{{ $t->assignee?->name ?? 'Unassigned' }}</span>
+                                                @if ($t->due_date)
+                                                    <span>·</span>
+                                                    <span class="{{ $t->due_date->isPast() && $t->status !== 'completed' ? 'text-rose-600 font-semibold' : '' }}">
+                                                        Due {{ $t->due_date->format('d M Y') }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-3 whitespace-nowrap" id="budget-row-task-status-{{ $t->id }}">
+                                            @if ($t->status === 'completed')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Selesai</span>
+                                            @elseif ($t->status === 'in_review')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">In Review</span>
+                                            @elseif ($t->status === 'in_progress')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">In Progress</span>
+                                            @elseif ($t->status === 'waiting_client')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Waiting</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">To Do</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-3 whitespace-nowrap">
+                                            <div class="flex items-center gap-1.5 font-mono">
+                                                <strong class="text-slate-900 font-bold" id="budget-row-estimate-{{ $t->id }}">
+                                                    {{ $tEstimate > 0 ? $tEstimate . 'j' : '-' }}
+                                                </strong>
+                                                <button
+                                                    type="button"
+                                                    onclick="openTaskBudgetModal({{ $t->id }}, '{{ addslashes($t->title) }}', {{ $tEstimate }}, {{ $tActual }}, {{ $tBurn }}, '{{ $tStatus }}')"
+                                                    class="text-slate-400 hover:text-indigo-600 p-0.5 rounded hover:bg-indigo-50 transition cursor-pointer"
+                                                    title="Ubah target estimasi jam kerja"
+                                                >
+                                                    <x-heroicon-o-pencil-square class="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-3 whitespace-nowrap font-mono">
+                                            <strong class="text-slate-900 font-bold" id="budget-row-actual-{{ $t->id }}">
+                                                {{ $t->formattedActualLoggedTime() }}
+                                            </strong>
+                                            <span class="text-[11px] text-slate-400">({{ $tActual }}j)</span>
+                                        </td>
+                                        <td class="py-3 px-3 whitespace-nowrap">
+                                            @if ($tEstimate > 0)
+                                                <div class="w-24" id="budget-row-burn-container-{{ $t->id }}">
+                                                    <div class="flex items-center justify-between text-[10.5px] font-mono mb-1">
+                                                        <span class="font-bold {{ $tOver ? 'text-rose-700' : ($tWarn ? 'text-amber-800' : 'text-slate-700') }}" id="budget-row-burn-text-{{ $t->id }}">{{ $tBurn }}%</span>
+                                                        <span class="text-[9.5px] text-slate-400" id="budget-row-delta-text-{{ $t->id }}">{{ $tOver ? '+' . $t->overBudgetHours() . 'j' : '-' . $t->remainingHours() . 'j' }}</span>
+                                                    </div>
+                                                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                        <div
+                                                            id="budget-row-burn-bar-{{ $t->id }}"
+                                                            class="h-1.5 rounded-full {{ $tOver ? 'bg-rose-600' : ($tWarn ? 'bg-amber-500' : 'bg-emerald-600') }}"
+                                                            style="width: {{ min(100, $tBurn) }}%"
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <span class="text-[11px] text-slate-400" id="budget-row-burn-container-{{ $t->id }}">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-3 whitespace-nowrap" id="budget-row-status-cell-{{ $t->id }}">
+                                            @if ($tStatus === 'over_budget')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                                    <x-heroicon-s-exclamation-triangle class="w-3 h-3 text-rose-600" />
+                                                    <span>Over-Budget</span>
+                                                </span>
+                                            @elseif ($tStatus === 'warning')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                                    <x-heroicon-o-exclamation-circle class="w-3 h-3 text-amber-600" />
+                                                    <span>Mendekati Kuota (>=80%)</span>
+                                                </span>
+                                            @elseif ($tEstimate > 0)
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    <x-heroicon-o-check-circle class="w-3 h-3 text-emerald-600" />
+                                                    <span>Aman / On-Track</span>
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                                    Tanpa Estimasi
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-3 text-right whitespace-nowrap">
+                                            <div class="inline-flex items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onclick="openTaskBudgetModal({{ $t->id }}, '{{ addslashes($t->title) }}', {{ $tEstimate }}, {{ $tActual }}, {{ $tBurn }}, '{{ $tStatus }}')"
+                                                    class="button secondary small text-xs py-1 px-2"
+                                                >
+                                                    Atur Estimasi
+                                                </button>
+                                                @if(auth()->check() && auth()->user()->isStaff() && (int)$t->assigned_to === (int)auth()->id())
+                                                    <button
+                                                        type="button"
+                                                        onclick="window.KonsulinTimer && window.KonsulinTimer.start({{ $t->id }}, '{{ addslashes($t->title) }}', '{{ addslashes($project->client->name ?? 'Klien') }}')"
+                                                        class="button small text-xs py-1 px-2"
+                                                        title="Mulai Lacak Jam Kerja"
+                                                    >
+                                                        <x-heroicon-o-play class="w-3 h-3 text-emerald-400" />
+                                                        <span>Timer</span>
+                                                    </button>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr id="emptyBudgetTasksRow">
+                                        <td colspan="7" class="py-8 text-center text-slate-400">
+                                            <x-heroicon-o-clipboard-document-list class="w-8 h-8 mx-auto mb-1 text-slate-300" />
+                                            <p class="text-xs font-medium">Belum ada tugas pada proyek ini.</p>
+                                            <button type="button" onclick="document.getElementById('taskFormModal').showModal()" class="mt-2 text-xs font-bold text-blue-600 hover:underline cursor-pointer">
+                                                + Tambah Tugas Baru &rarr;
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
             <!-- Progress Stream / Activity Timeline -->
             <section class="panel mt-4">
                 <div class="flex items-center justify-between mb-3">
@@ -859,69 +1182,17 @@
 
         <!-- Right Side Management Panel (Action Buttons & Overview) -->
         <aside class="flex flex-col gap-4" data-animate-children>
-            <!-- Quick Actions Panel -->
-            <section class="panel !p-4 !mb-0 border border-slate-200 rounded-xl bg-white shadow-sm">
-                <div class="mb-3 pb-2 border-b border-slate-100">
-                    <h2 class="!text-sm !font-bold text-slate-900 !mb-0.5 flex items-center gap-1.5">
-                        <x-heroicon-o-bolt class="w-4 h-4 text-blue-600" />
-                        <span>Quick Actions</span>
-                    </h2>
-                    <p class="text-[11px] text-slate-500">Aksi cepat untuk update pekerjaan proyek.</p>
-                </div>
-
-                <div class="flex flex-col gap-2.5">
-                    <!-- Button 1: Add Task -->
-                    <button
-                        type="button"
-                        onclick="document.getElementById('taskFormModal').showModal()"
-                        class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-400 bg-slate-50/60 hover:bg-blue-50/40 transition-all flex items-center justify-between group cursor-pointer"
-                    >
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                <x-heroicon-o-plus-circle class="w-5 h-5" />
-                            </div>
-                            <div>
-                                <strong class="text-xs font-bold text-slate-900 group-hover:text-blue-700 block leading-tight">Add Task</strong>
-                                <span class="text-[11px] text-slate-500 block mt-0.5">Tambah tugas atau issue kerja baru</span>
-                            </div>
-                        </div>
-                        <x-heroicon-o-chevron-right class="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+            <section class="panel !p-4 !mb-0">
+                <h2 class="!text-sm !mb-3">Aksi proyek</h2>
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" onclick="document.getElementById('taskFormModal').showModal()" class="project-icon-action" aria-label="Tambah tugas" title="Tambah tugas">
+                        <x-heroicon-o-plus class="w-5 h-5" />
                     </button>
-
-                    <!-- Button 2: Upload Progress -->
-                    <button
-                        type="button"
-                        onclick="document.getElementById('progressModal').showModal()"
-                        class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-emerald-400 bg-slate-50/60 hover:bg-emerald-50/40 transition-all flex items-center justify-between group cursor-pointer"
-                    >
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                <x-heroicon-o-arrow-up-tray class="w-5 h-5" />
-                            </div>
-                            <div>
-                                <strong class="text-xs font-bold text-slate-900 group-hover:text-emerald-700 block leading-tight">Upload Progress</strong>
-                                <span class="text-[11px] text-slate-500 block mt-0.5">Catat milestone & kemajuan proyek</span>
-                            </div>
-                        </div>
-                        <x-heroicon-o-chevron-right class="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                    <button type="button" onclick="document.getElementById('progressModal').showModal()" class="project-icon-action" aria-label="Catat progres" title="Catat progres">
+                        <x-heroicon-o-arrow-up-tray class="w-5 h-5" />
                     </button>
-
-                    <!-- Button 3: Log Threat -->
-                    <button
-                        type="button"
-                        onclick="document.getElementById('threatModal').showModal()"
-                        class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-rose-400 bg-slate-50/60 hover:bg-rose-50/40 transition-all flex items-center justify-between group cursor-pointer"
-                    >
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                <x-heroicon-o-shield-exclamation class="w-5 h-5" />
-                            </div>
-                            <div>
-                                <strong class="text-xs font-bold text-slate-900 group-hover:text-rose-700 block leading-tight">Log Threat</strong>
-                                <span class="text-[11px] text-slate-500 block mt-0.5">Laporkan risiko atau blocker operasional</span>
-                            </div>
-                        </div>
-                        <x-heroicon-o-chevron-right class="w-4 h-4 text-slate-400 group-hover:text-rose-600 group-hover:translate-x-0.5 transition-all" />
+                    <button type="button" onclick="document.getElementById('threatModal').showModal()" class="project-icon-action text-rose-700" aria-label="Catat risiko" title="Catat risiko">
+                        <x-heroicon-o-shield-exclamation class="w-5 h-5" />
                     </button>
                 </div>
             </section>
@@ -1009,6 +1280,10 @@
                         </span>
                     </div>
                     <div class="flex items-center justify-between py-1 border-b border-slate-100">
+                        <span class="text-slate-500">Skema PPh</span>
+                        <span class="font-semibold text-slate-900">{{ $project->client->pph_scheme ?? 'Belum ditentukan' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between py-1 border-b border-slate-100">
                         <span class="text-slate-500">Mulai</span>
                         <span class="font-medium text-slate-800">{{ $project->start_date?->format('d M Y') ?? '-' }}</span>
                     </div>
@@ -1024,6 +1299,43 @@
             </section>
         </aside>
     </div>
+
+    <style>
+        .project-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #e2e8f0; }
+        .project-back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: #64748b; font-size: 12px; font-weight: 600; }
+        .project-back-link:hover { color: #0b192c; }
+        .project-back-link:focus-visible, .project-icon-action:focus-visible { outline: 2px solid #1e3e62; outline-offset: 2px; }
+        .project-detail-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 5px 0 0; color: #64748b; font-size: 12px; }
+        .project-primary-action { min-height: 40px; flex-shrink: 0; }
+        .project-detail-header + .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
+        .project-detail-header + .stats > :nth-child(2) { display: none; }
+        .project-detail-header + .stats .stat { padding: 14px; }
+        .project-team-strip { display: flex; align-items: center; gap: 12px; min-height: 52px; margin-bottom: 16px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+        .project-team-label { color: #475569; font-size: 12px; font-weight: 700; }
+        .project-detail-avatar { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+        .project-icon-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #334155; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
+        .project-icon-action:hover { border-color: #94a3b8; background: #f8fafc; }
+        .project-detail-layout { grid-template-columns: minmax(0, 1fr) !important; }
+        .project-detail-layout > aside { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .kanban-workspace { overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+        .kanban-workspace:focus-visible { outline: 2px solid #1e3e62; outline-offset: 3px; }
+        .kanban-lanes { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 12px; min-width: 1160px; align-items: start; }
+        .kanban-lane { min-height: 184px; scroll-snap-align: start; }
+        .kanban-lane-tasks { min-height: 112px; }
+        .kanban-empty-state { display: grid; min-height: 112px; place-items: center; padding: 16px; line-height: 1.4; }
+        .task-card-item { min-width: 0; }
+        .task-card-item .task-title-text { font-size: 13px; line-height: 1.4; }
+        .task-card-item .task-status-select { min-width: 96px; min-height: 32px; }
+        @media (max-width: 767px) {
+            .project-detail-header { align-items: stretch; flex-direction: column; gap: 12px; }
+            .project-primary-action { width: 100%; }
+            .project-detail-header + .stats { grid-template-columns: 1fr; }
+            .project-team-strip { flex-wrap: wrap; }
+            .project-detail-layout > aside { grid-template-columns: 1fr; }
+            .kanban-lanes { grid-template-columns: repeat(5, minmax(248px, 1fr)); min-width: 1300px; }
+            .kanban-lane { min-height: 168px; }
+        }
+    </style>
 
     <!-- Modals for Full Dialogs -->
     <!-- Modals for Full Dialogs -->
@@ -1054,12 +1366,142 @@
             </div>
             <div class="form-grid">
                 <label>Progress % <input type="number" name="progress_percent" min="0" max="100" value="0" required></label>
+                <label>Estimasi Waktu Kerja (Jam) <input type="number" step="0.25" min="0" max="999" name="estimated_hours" value="0" placeholder="Contoh: 4.5"></label>
+            </div>
+            <div class="form-grid">
                 <label>Due date <input type="date" name="due_date"></label>
             </div>
             <label>Notes <textarea name="notes" placeholder="Catatan detail..."></textarea></label>
             <div class="modal-actions">
                 <button type="button" class="button secondary" onclick="document.getElementById('taskFormModal').close()">Cancel</button>
                 <button class="button" type="submit">Save Task</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Modal: Task Budget & Estimasi Jam Kerja -->
+    <dialog id="taskBudgetModal" class="rounded-2xl p-0 border border-slate-200 shadow-2xl backdrop:bg-slate-900/50 w-full max-w-md overflow-hidden m-auto">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+                    <x-heroicon-o-clock class="w-4 h-4" />
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 leading-tight">Alokasi & Estimasi Jam Tugas</h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5 truncate max-w-[240px]" id="budgetModalTaskTitle">Judul Tugas</p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('taskBudgetModal').close()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer">
+                <x-heroicon-s-x-mark class="w-4 h-4" />
+            </button>
+        </div>
+        <form id="ajaxTaskBudgetForm" class="p-5 space-y-4">
+            @csrf
+            <input type="hidden" id="budgetModalTaskId" name="task_id">
+
+            <!-- Realization & Burn Rate Stat -->
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 tracking-wider">Realisasi Tercatat</span>
+                    <strong class="text-lg font-bold font-mono text-slate-900" id="budgetModalActualHours">0.0 jam</strong>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 tracking-wider">Burn Rate Saat Ini</span>
+                    <span class="text-xs font-bold font-mono px-2 py-0.5 rounded border" id="budgetModalBurnBadge">0%</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="budgetModalEstimatedHours" class="block text-xs font-semibold text-slate-700 mb-1">
+                    Target Estimasi Jam Kerja (Budget Hours) <span class="text-rose-600">*</span>
+                </label>
+                <div class="relative">
+                    <input
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        max="999"
+                        id="budgetModalEstimatedHours"
+                        name="estimated_hours"
+                        required
+                        placeholder="Contoh: 8.5"
+                        class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#0b192c]/20 focus:border-[#0b192c] transition font-mono pr-12"
+                    >
+                    <span class="absolute right-3 top-2.5 text-xs text-slate-400 font-medium">Jam</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">
+                    Target alokasi jam kerja staf untuk penyelesaian tugas ini.
+                </p>
+            </div>
+
+            <div class="p-2.5 rounded-lg border text-xs" id="budgetModalStatusAlert">
+                <!-- Status explanation populated by JS -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" onclick="document.getElementById('taskBudgetModal').close()" class="button secondary text-xs py-1.5 px-3">Batal</button>
+                <button type="submit" id="budgetModalSubmitBtn" class="button text-xs py-1.5 px-4">Simpan Estimasi</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Modal: Edit Project Budget Hours -->
+    <dialog id="editProjectBudgetModal" class="rounded-2xl p-0 border border-slate-200 shadow-2xl backdrop:bg-slate-900/50 w-full max-w-md overflow-hidden m-auto">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+                    <x-heroicon-o-adjustments-horizontal class="w-4 h-4" />
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 leading-tight">Target Kuota Waktu Proyek</h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5 truncate max-w-[240px]">{{ $project->name }}</p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('editProjectBudgetModal').close()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer">
+                <x-heroicon-s-x-mark class="w-4 h-4" />
+            </button>
+        </div>
+        <form id="ajaxProjectBudgetForm" method="POST" action="{{ route('projects.update-budget', $project) }}" class="p-5 space-y-4">
+            @csrf
+            @method('PATCH')
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 tracking-wider">Total Log Saat Ini</span>
+                    <strong class="text-base font-bold font-mono text-slate-900" id="projectBudgetModalLoggedTime">{{ $project->formattedTotalLoggedTime() }}</strong>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 tracking-wider">Total Estimasi Tugas</span>
+                    <strong class="text-base font-bold font-mono text-slate-900" id="projectBudgetModalTasksEstimate">{{ (float) $project->tasksTotalEstimatedHours() }} jam</strong>
+                </div>
+            </div>
+
+            <div>
+                <label for="projectBudgetEstimatedHoursInput" class="block text-xs font-semibold text-slate-700 mb-1">
+                    Kuota Jam Proyek (Budget Hours Cap)
+                </label>
+                <div class="relative">
+                    <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="9999"
+                        id="projectBudgetEstimatedHoursInput"
+                        name="estimated_hours"
+                        value="{{ (float) $project->projectBudgetHours() }}"
+                        placeholder="Contoh: 40"
+                        class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#0b192c]/20 focus:border-[#0b192c] transition font-mono pr-12"
+                    >
+                    <span class="absolute right-3 top-2.5 text-xs text-slate-400 font-medium">Jam</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1.5">
+                    Masukkan 0 jika ingin kuota proyek dihitung otomatis dari akumulasi estimasi masing-masing tugas.
+                </p>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" onclick="document.getElementById('editProjectBudgetModal').close()" class="button secondary text-xs py-1.5 px-3">Batal</button>
+                <button type="submit" id="projectBudgetSubmitBtn" class="button text-xs py-1.5 px-4">Simpan Kuota</button>
             </div>
         </form>
     </dialog>
@@ -1307,9 +1749,11 @@
             const board = document.getElementById('jiraBoardView');
             const list = document.getElementById('jiraListView');
             const docs = document.getElementById('jiraDocsView');
+            const budget = document.getElementById('jiraBudgetView');
             const boardBtn = document.getElementById('tabBoardBtn');
             const listBtn = document.getElementById('tabListBtn');
             const docsBtn = document.getElementById('tabDocsBtn');
+            const budgetBtn = document.getElementById('tabBudgetBtn');
 
             const activeClass = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0b192c] text-white flex items-center gap-1.5 transition cursor-pointer';
             const inactiveClass = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer';
@@ -1317,15 +1761,298 @@
             if (board) board.style.display = (view === 'board') ? 'block' : 'none';
             if (list) list.style.display = (view === 'list') ? 'block' : 'none';
             if (docs) docs.style.display = (view === 'documents') ? 'block' : 'none';
+            if (budget) budget.style.display = (view === 'budget') ? 'block' : 'none';
 
             if (boardBtn) boardBtn.className = (view === 'board') ? activeClass : inactiveClass;
             if (listBtn) listBtn.className = (view === 'list') ? activeClass : inactiveClass;
             if (docsBtn) docsBtn.className = (view === 'documents') ? activeClass : inactiveClass;
+            if (budgetBtn) budgetBtn.className = (view === 'budget') ? activeClass : inactiveClass;
 
             if (view === 'documents' && docs) {
                 docs.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
+            if (view === 'budget' && budget) {
+                budget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
+
+        function openEditProjectBudgetModal() {
+            const modal = document.getElementById('editProjectBudgetModal');
+            if (modal) modal.showModal();
+        }
+
+        function openTaskBudgetModal(taskId, title, estimate, actual, burnRate, budgetStatus) {
+            document.getElementById('budgetModalTaskId').value = taskId;
+            document.getElementById('budgetModalTaskTitle').textContent = title;
+            document.getElementById('budgetModalActualHours').textContent = `${actual} jam`;
+            document.getElementById('budgetModalEstimatedHours').value = (estimate && estimate > 0) ? estimate : '';
+
+            const badge = document.getElementById('budgetModalBurnBadge');
+            if (badge) {
+                badge.textContent = `${burnRate}%`;
+                if (budgetStatus === 'over_budget') {
+                    badge.className = 'text-xs font-bold font-mono px-2 py-0.5 rounded border bg-rose-100 text-rose-800 border-rose-200';
+                } else if (budgetStatus === 'warning') {
+                    badge.className = 'text-xs font-bold font-mono px-2 py-0.5 rounded border bg-amber-100 text-amber-800 border-amber-200';
+                } else if (estimate > 0) {
+                    badge.className = 'text-xs font-bold font-mono px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-200';
+                } else {
+                    badge.className = 'text-xs font-bold font-mono px-2 py-0.5 rounded border bg-slate-100 text-slate-700 border-slate-200';
+                }
+            }
+
+            const alertBox = document.getElementById('budgetModalStatusAlert');
+            if (alertBox) {
+                if (budgetStatus === 'over_budget') {
+                    alertBox.className = 'p-2.5 rounded-lg border text-xs bg-rose-50 border-rose-200 text-rose-800';
+                    alertBox.innerHTML = `<strong>Peringatan Over-Budget:</strong> Realisasi pengerjaan (${actual}j) telah melampaui estimasi (${estimate}j). Perlu evaluasi beban kerja atau penyesuaian alokasi.`;
+                } else if (budgetStatus === 'warning') {
+                    alertBox.className = 'p-2.5 rounded-lg border text-xs bg-amber-50 border-amber-200 text-amber-800';
+                    alertBox.innerHTML = `<strong>Mendekati Batas:</strong> Waktu tercatat (${actual}j) telah mencapai ${burnRate}% dari alokasi (${estimate}j). Pantau agar tidak terjadi pembengkakan.`;
+                } else if (estimate > 0) {
+                    alertBox.className = 'p-2.5 rounded-lg border text-xs bg-emerald-50 border-emerald-200 text-emerald-800';
+                    alertBox.innerHTML = `<strong>Terkendali:</strong> ${actual} jam digunakan dari target ${estimate} jam (${burnRate}%). Sisa alokasi masih mencukupi.`;
+                } else {
+                    alertBox.className = 'p-2.5 rounded-lg border text-xs bg-slate-50 border-slate-200 text-slate-600';
+                    alertBox.innerHTML = `Tugas ini belum memiliki estimasi kuota jam kerja. Masukkan angka target di atas untuk memantau efisiensi staf.`;
+                }
+            }
+
+            const modal = document.getElementById('taskBudgetModal');
+            if (modal) modal.showModal();
+        }
+
+        function updateProjectBudgetUI(budget) {
+            if (!budget) return;
+            const isOver = budget.budget_status === 'over_budget';
+            const isWarn = budget.budget_status === 'warning';
+            const hasCap = budget.effective_estimated_hours > 0;
+
+            const statLogged = document.getElementById('statLoggedTimeValue');
+            if (statLogged) statLogged.textContent = budget.formatted_total_logged_time;
+
+            const statTarget = document.getElementById('statBudgetTargetValue');
+            if (statTarget) {
+                statTarget.textContent = hasCap ? `/ ${budget.effective_estimated_hours}j` : '(Tanpa Kuota)';
+                statTarget.className = hasCap ? 'text-xs text-slate-500 font-medium font-mono' : 'text-xs text-slate-400 font-medium';
+            }
+
+            const statProg = document.getElementById('statBurnProgressBar');
+            if (statProg) {
+                statProg.style.width = `${Math.min(100, budget.burn_rate)}%`;
+                statProg.className = `h-1.5 rounded-full transition-all duration-500 ${isOver ? 'bg-rose-600' : (isWarn ? 'bg-amber-500' : 'bg-emerald-600')}`;
+            }
+
+            const statDot = document.getElementById('statBurnDot');
+            if (statDot) {
+                statDot.className = `w-2 h-2 rounded-full ${isOver ? 'bg-rose-600 animate-pulse' : (isWarn ? 'bg-amber-500' : (hasCap ? 'bg-emerald-500' : 'bg-slate-400'))}`;
+            }
+
+            const statBurnText = document.getElementById('statBurnRateBadgeText');
+            if (statBurnText) {
+                statBurnText.textContent = hasCap ? `Burn Rate ${budget.burn_rate}%` : 'Estimasi Kuota';
+            }
+
+            const statRemText = document.getElementById('statRemainingHoursText');
+            if (statRemText) {
+                if (hasCap) {
+                    statRemText.textContent = isOver ? `Over +${budget.over_budget_hours}j` : `Sisa ${budget.remaining_hours}j`;
+                } else {
+                    statRemText.textContent = 'Belum Diset';
+                }
+            }
+
+            const statBox = document.getElementById('statBurnInfoBox');
+            if (statBox) {
+                statBox.className = `p-1.5 rounded-lg border mb-2 flex items-center justify-between text-[11px] ${isOver ? 'bg-rose-50 border-rose-200 text-rose-800' : (isWarn ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-700')}`;
+            }
+
+            const statCard = document.getElementById('statProjectBudgetCard');
+            if (statCard) {
+                statCard.className = `stat ${isOver ? 'border-rose-300 bg-rose-50/20' : (isWarn ? 'border-amber-300 bg-amber-50/20' : '')}`;
+            }
+
+            const statIcon = document.getElementById('statBudgetIconContainer');
+            if (statIcon) {
+                statIcon.className = `w-7 h-7 rounded-lg flex items-center justify-center border ${isOver ? 'bg-rose-100 text-rose-700 border-rose-200' : (isWarn ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-50 text-indigo-700 border-indigo-100')}`;
+            }
+
+            const tabBadge = document.getElementById('tabBudgetBadge');
+            if (tabBadge) {
+                if (hasCap) {
+                    tabBadge.style.display = '';
+                    tabBadge.textContent = `${budget.burn_rate}%`;
+                    tabBadge.className = `text-[10px] font-bold px-1.5 py-0.2 rounded-full ${isOver ? 'bg-rose-100 text-rose-800 border border-rose-200' : (isWarn ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200')}`;
+                } else {
+                    tabBadge.style.display = 'none';
+                }
+            }
+
+            const tabMainBadge = document.getElementById('budgetTabMainStatusBadge');
+            if (tabMainBadge) {
+                tabMainBadge.className = `label ${isOver ? 'danger' : (isWarn ? 'warning' : 'navy')} text-xs`;
+                tabMainBadge.textContent = isOver ? 'Over-Budget' : (isWarn ? 'Mendekati Batas (>=80%)' : (hasCap ? 'On-Track' : 'Tanpa Kuota'));
+            }
+
+            const cardProjBudget = document.getElementById('budgetViewProjectBudget');
+            if (cardProjBudget) cardProjBudget.textContent = `${budget.project_budget_hours}j`;
+
+            const cardTasksEst = document.getElementById('budgetViewTasksTotalEstimate');
+            if (cardTasksEst) cardTasksEst.textContent = `Akumulasi tugas: ${budget.tasks_total_estimated_hours} jam`;
+
+            const cardTotalLog = document.getElementById('budgetViewTotalLogged');
+            if (cardTotalLog) cardTotalLog.textContent = budget.formatted_total_logged_time;
+
+            const cardDecHours = document.getElementById('budgetViewDecimalHours');
+            if (cardDecHours) cardDecHours.textContent = `(${budget.total_logged_hours}j)`;
+
+            const cardBurn = document.getElementById('budgetViewBurnRate');
+            if (cardBurn) {
+                cardBurn.textContent = `${budget.burn_rate}%`;
+                cardBurn.className = `text-xl font-bold font-mono ${isOver ? 'text-rose-700' : (isWarn ? 'text-amber-900' : 'text-slate-900')}`;
+            }
+
+            const cardBurnPill = document.getElementById('budgetViewBurnStatusPill');
+            if (cardBurnPill) {
+                cardBurnPill.textContent = isOver ? 'Over-Budget' : (isWarn ? 'Waspada' : 'Aman');
+                cardBurnPill.className = `text-[10.5px] font-bold px-1.5 py-0.2 rounded ${isOver ? 'bg-rose-200/80 text-rose-900' : (isWarn ? 'bg-amber-200/80 text-amber-900' : 'bg-emerald-100 text-emerald-800')}`;
+            }
+
+            const cardRemTitle = document.getElementById('budgetViewRemainingTitle');
+            if (cardRemTitle) cardRemTitle.textContent = isOver ? 'Kelebihan Jam (Over)' : 'Sisa Kuota Waktu';
+
+            const cardRemHours = document.getElementById('budgetViewRemainingHours');
+            if (cardRemHours) {
+                cardRemHours.textContent = isOver ? `+${budget.over_budget_hours}j` : `${budget.remaining_hours}j`;
+                cardRemHours.className = `text-xl font-bold font-mono ${isOver ? 'text-rose-700' : 'text-emerald-700'}`;
+            }
+
+            const cardRemSub = document.getElementById('budgetViewRemainingSubtext');
+            if (cardRemSub) {
+                cardRemSub.textContent = isOver ? 'Perlu penyesuaian scope / add-on' : 'Kapasitas pengerjaan masih tersedia';
+            }
+
+            const meterBar = document.getElementById('budgetViewProgressBar');
+            if (meterBar) {
+                meterBar.style.width = `${Math.min(100, budget.burn_rate)}%`;
+                meterBar.className = `h-3 rounded-full transition-all duration-500 ${isOver ? 'bg-rose-600' : (isWarn ? 'bg-amber-500' : 'bg-emerald-600')}`;
+            }
+
+            const meterDot = document.getElementById('budgetViewMeterDot');
+            if (meterDot) {
+                meterDot.className = `w-2 h-2 rounded-full ${isOver ? 'bg-rose-600' : (isWarn ? 'bg-amber-500' : 'bg-emerald-500')}`;
+            }
+
+            const meterSub = document.getElementById('budgetViewMeterSubtext');
+            if (meterSub) {
+                meterSub.textContent = `${budget.total_logged_hours} jam dari batas ${budget.effective_estimated_hours} jam`;
+            }
+
+            const modalLogged = document.getElementById('projectBudgetModalLoggedTime');
+            if (modalLogged) modalLogged.textContent = budget.formatted_total_logged_time;
+
+            const modalTasksEst = document.getElementById('projectBudgetModalTasksEstimate');
+            if (modalTasksEst) modalTasksEst.textContent = `${budget.tasks_total_estimated_hours} jam`;
+        }
+
+        function updateTaskBudgetUI(task) {
+            if (!task) return;
+            const isOver = task.budget_status === 'over_budget';
+            const isWarn = task.budget_status === 'warning';
+            const hasEst = task.estimated_hours > 0;
+
+            const pill = document.getElementById(`task-budget-pill-${task.id}`);
+            if (pill) {
+                pill.title = `Realisasi ${task.formatted_actual_time} / ${task.estimated_hours} jam (Burn: ${task.burn_rate}%) · Klik untuk ubah alokasi`;
+                pill.setAttribute('onclick', `openTaskBudgetModal(${task.id}, '${escapeHtml(task.title)}', ${task.estimated_hours}, ${task.actual_hours}, ${task.burn_rate}, '${task.budget_status}')`);
+                pill.className = `inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border transition cursor-pointer ${isOver ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : (isWarn ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100' : (hasEst ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'))}`;
+
+                const pillText = document.getElementById(`task-budget-pill-text-${task.id}`);
+                if (pillText) {
+                    pillText.textContent = `${task.formatted_actual_time} / ${task.estimated_hours}j`;
+                }
+
+                let badgeEl = document.getElementById(`task-budget-pill-badge-${task.id}`);
+                if (isOver) {
+                    if (!badgeEl) {
+                        badgeEl = document.createElement('span');
+                        badgeEl.id = `task-budget-pill-badge-${task.id}`;
+                        pill.appendChild(badgeEl);
+                    }
+                    badgeEl.className = 'text-[8px] font-bold px-1 py-0.2 rounded bg-rose-200/80 text-rose-800';
+                    badgeEl.textContent = 'Over';
+                } else if (isWarn) {
+                    if (!badgeEl) {
+                        badgeEl = document.createElement('span');
+                        badgeEl.id = `task-budget-pill-badge-${task.id}`;
+                        pill.appendChild(badgeEl);
+                    }
+                    badgeEl.className = 'text-[8px] font-bold px-1 py-0.2 rounded bg-amber-200/80 text-amber-800';
+                    badgeEl.textContent = `${task.burn_rate}%`;
+                } else if (badgeEl) {
+                    badgeEl.remove();
+                }
+            }
+
+            const rowEstimate = document.getElementById(`budget-row-estimate-${task.id}`);
+            if (rowEstimate) {
+                rowEstimate.textContent = hasEst ? `${task.estimated_hours}j` : '-';
+            }
+
+            const rowBurnContainer = document.getElementById(`budget-row-burn-container-${task.id}`);
+            if (rowBurnContainer) {
+                if (hasEst) {
+                    rowBurnContainer.innerHTML = `
+                        <div class="flex items-center justify-between text-[10.5px] font-mono mb-1">
+                            <span class="font-bold ${isOver ? 'text-rose-700' : (isWarn ? 'text-amber-800' : 'text-slate-700')}" id="budget-row-burn-text-${task.id}">${task.burn_rate}%</span>
+                            <span class="text-[9.5px] text-slate-400" id="budget-row-delta-text-${task.id}">${isOver ? '+' + task.over_budget_hours + 'j' : '-' + task.remaining_hours + 'j'}</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                            <div
+                                id="budget-row-burn-bar-${task.id}"
+                                class="h-1.5 rounded-full ${isOver ? 'bg-rose-600' : (isWarn ? 'bg-amber-500' : 'bg-emerald-600')}"
+                                style="width: ${Math.min(100, task.burn_rate)}%"
+                            ></div>
+                        </div>
+                    `;
+                } else {
+                    rowBurnContainer.innerHTML = '<span class="text-[11px] text-slate-400">-</span>';
+                }
+            }
+
+            const rowStatusCell = document.getElementById(`budget-row-status-cell-${task.id}`);
+            if (rowStatusCell) {
+                if (isOver) {
+                    rowStatusCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <svg class="w-3 h-3 text-rose-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                            <span>Over-Budget</span>
+                        </span>
+                    `;
+                } else if (isWarn) {
+                    rowStatusCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <svg class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            <span>Mendekati Kuota (>=80%)</span>
+                        </span>
+                    `;
+                } else if (hasEst) {
+                    rowStatusCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>Aman / On-Track</span>
+                        </span>
+                    `;
+                } else {
+                    rowStatusCell.innerHTML = `
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                            Tanpa Estimasi
+                        </span>
+                    `;
+                }
+            }
+        }
+
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -1970,6 +2697,21 @@
                     if (statSub) statSub.textContent = `${data.completed_tasks} done · ${data.in_progress_tasks} in progress`;
                 }
 
+                if (data.project_budget) {
+                    updateProjectBudgetUI(data.project_budget);
+                }
+                const budgetRowStatus = document.getElementById(`budget-row-task-status-${taskId}`);
+                if (budgetRowStatus) {
+                    const statusMap = {
+                        'completed': '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Selesai</span>',
+                        'in_review': '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">In Review</span>',
+                        'in_progress': '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">In Progress</span>',
+                        'waiting_client': '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Waiting</span>',
+                        'not_started': '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">To Do</span>'
+                    };
+                    budgetRowStatus.innerHTML = statusMap[newStatus] || `<span class="label text-[10px]">${newStatus}</span>`;
+                }
+
                 updateKanbanColumnStates();
                 window.toast?.success(data.message || 'Status task berhasil diperbarui.');
 
@@ -2044,6 +2786,27 @@
                                     </div>
                                     <div class="text-xs font-semibold text-slate-900 leading-snug mb-2 task-title-text">${escapeHtml(task.title)}</div>
                                     ${task.notes ? `<p class="text-[11px] text-slate-500 line-clamp-2 mb-2 task-notes-text">${escapeHtml(task.notes)}</p>` : ''}
+                                    <div class="mb-1.5 flex items-center justify-between gap-1 flex-wrap">
+                                        <button
+                                            type="button"
+                                            onclick="openQualityGateModal(${task.id})"
+                                            class="inline-flex items-center gap-1 text-[10px] font-medium text-slate-700 hover:text-indigo-700 bg-slate-50 hover:bg-indigo-50/60 px-1.5 py-0.5 rounded border border-slate-200 transition cursor-pointer"
+                                            title="Buka Quality Gate & Checklist Kertas Kerja"
+                                        >
+                                            <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span>0/0 QC</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            id="task-budget-pill-${task.id}"
+                                            onclick="openTaskBudgetModal(${task.id}, '${escapeHtml(task.title)}', ${task.estimated_hours || 0}, 0, 0, 'on_track')"
+                                            class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border transition cursor-pointer ${task.estimated_hours > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}"
+                                            title="Realisasi 0m / ${task.estimated_hours || 0} jam · Klik untuk ubah alokasi"
+                                        >
+                                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span class="font-mono" id="task-budget-pill-text-${task.id}">0m / ${task.estimated_hours || 0}j</span>
+                                        </button>
+                                    </div>
                                     <div class="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden">
                                         <div class="bg-[#0b192c] h-1.5 rounded-full task-progress-bar-fill" style="width: ${task.progress_percent}%"></div>
                                     </div>
@@ -2116,6 +2879,75 @@
                                     </td>
                                 `;
                                 tableBody.appendChild(tr);
+                            }
+
+                            const budgetTableBody = document.getElementById('taskBudgetTableBody');
+                            if (budgetTableBody) {
+                                const bRow = document.createElement('tr');
+                                bRow.className = 'hover:bg-slate-50/60 transition-colors';
+                                bRow.id = `budget-table-row-${task.id}`;
+                                const estHours = (task.estimated_hours && task.estimated_hours > 0) ? task.estimated_hours : 0;
+                                bRow.innerHTML = `
+                                    <td class="py-3 px-3">
+                                        <div class="font-bold text-slate-900 leading-snug">${escapeHtml(task.title)}</div>
+                                        <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                                            <span class="font-mono text-[10.5px] text-slate-400">TSK-${task.id}</span>
+                                            <span>·</span>
+                                            <span>${escapeHtml(task.assignee_name || 'Unassigned')}</span>
+                                            ${task.due_date ? `<span>·</span><span>Due ${escapeHtml(task.due_date)}</span>` : ''}
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-3 whitespace-nowrap" id="budget-row-task-status-${task.id}">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">To Do</span>
+                                    </td>
+                                    <td class="py-3 px-3 whitespace-nowrap">
+                                        <div class="flex items-center gap-1.5 font-mono">
+                                            <strong class="text-slate-900 font-bold" id="budget-row-estimate-${task.id}">
+                                                ${estHours > 0 ? estHours + 'j' : '-'}
+                                            </strong>
+                                            <button
+                                                type="button"
+                                                onclick="openTaskBudgetModal(${task.id}, '${escapeHtml(task.title)}', ${estHours}, 0, 0, 'on_track')"
+                                                class="text-slate-400 hover:text-indigo-600 p-0.5 rounded hover:bg-indigo-50 transition cursor-pointer"
+                                                title="Ubah target estimasi jam kerja"
+                                            >
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-3 whitespace-nowrap font-mono">
+                                        <strong class="text-slate-900 font-bold" id="budget-row-actual-${task.id}">0m</strong>
+                                        <span class="text-[11px] text-slate-400">(0j)</span>
+                                    </td>
+                                    <td class="py-3 px-3 whitespace-nowrap">
+                                        <span class="text-[11px] text-slate-400" id="budget-row-burn-container-${task.id}">${estHours > 0 ? '0%' : '-'}</span>
+                                    </td>
+                                    <td class="py-3 px-3 whitespace-nowrap" id="budget-row-status-cell-${task.id}">
+                                        ${estHours > 0 ? `
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                <span>Aman / On-Track</span>
+                                            </span>
+                                        ` : `
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                                Tanpa Estimasi
+                                            </span>
+                                        `}
+                                    </td>
+                                    <td class="py-3 px-3 text-right whitespace-nowrap">
+                                        <button
+                                            type="button"
+                                            onclick="openTaskBudgetModal(${task.id}, '${escapeHtml(task.title)}', ${estHours}, 0, 0, 'on_track')"
+                                            class="button secondary small text-xs py-1 px-2"
+                                        >
+                                            Atur Estimasi
+                                        </button>
+                                    </td>
+                                `;
+                                budgetTableBody.appendChild(bRow);
+                            }
+
+                            if (data.project_budget) {
+                                updateProjectBudgetUI(data.project_budget);
                             }
 
                             document.querySelectorAll('.task-options-select').forEach(sel => {
@@ -2469,6 +3301,108 @@
                         document.getElementById('escalateDocThreatModal').close();
                         window.toast?.success(data.message);
                         setTimeout(() => window.location.reload(), 600);
+                    })
+                    .catch(err => {
+                        window.toast?.error(err.message);
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origText;
+                    });
+                });
+            }
+
+            // 7. AJAX Task Budget Form
+            const taskBudgetForm = document.getElementById('ajaxTaskBudgetForm');
+            if (taskBudgetForm) {
+                taskBudgetForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const taskId = document.getElementById('budgetModalTaskId').value;
+                    const estimatedHours = document.getElementById('budgetModalEstimatedHours').value;
+                    const submitBtn = document.getElementById('budgetModalSubmitBtn');
+                    const origText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span>Menyimpan...</span>';
+
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                    fetch(`/projects/{{ $project->id }}/tasks/${taskId}/estimate`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({ estimated_hours: estimatedHours })
+                    })
+                    .then(async res => {
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            const firstErr = data.errors ? Object.values(data.errors)[0][0] : data.message;
+                            throw new Error(firstErr || 'Gagal menyimpan estimasi jam tugas.');
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        document.getElementById('taskBudgetModal').close();
+                        window.toast?.success(data.message || 'Estimasi jam tugas berhasil diperbarui.');
+
+                        if (data.task) {
+                            updateTaskBudgetUI(data.task);
+                        }
+                        if (data.project_budget) {
+                            updateProjectBudgetUI(data.project_budget);
+                        }
+                    })
+                    .catch(err => {
+                        window.toast?.error(err.message);
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origText;
+                    });
+                });
+            }
+
+            // 8. AJAX Project Budget Cap Form
+            const projectBudgetForm = document.getElementById('ajaxProjectBudgetForm');
+            if (projectBudgetForm) {
+                projectBudgetForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const hoursInput = document.getElementById('projectBudgetEstimatedHoursInput').value;
+                    const submitBtn = document.getElementById('projectBudgetSubmitBtn');
+                    const origText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span>Menyimpan...</span>';
+
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                    fetch(`/projects/{{ $project->id }}/budget`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({ estimated_hours: hoursInput })
+                    })
+                    .then(async res => {
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            const firstErr = data.errors ? Object.values(data.errors)[0][0] : data.message;
+                            throw new Error(firstErr || 'Gagal menyimpan kuota proyek.');
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        document.getElementById('editProjectBudgetModal').close();
+                        window.toast?.success(data.message || 'Target kuota proyek berhasil diperbarui.');
+
+                        if (data.project_budget) {
+                            updateProjectBudgetUI(data.project_budget);
+                        }
                     })
                     .catch(err => {
                         window.toast?.error(err.message);

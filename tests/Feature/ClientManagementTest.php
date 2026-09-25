@@ -40,8 +40,8 @@ class ClientManagementTest extends TestCase
 
     public function test_user_can_view_client_list(): void
     {
-        $user = User::factory()->create(['role' => 'employee']);
-        $user->assignRole('employee');
+        $user = User::factory()->create(['role' => 'boss']);
+        $user->assignRole('boss');
         $this->actingAs($user);
 
         $client = Client::create([
@@ -62,6 +62,42 @@ class ClientManagementTest extends TestCase
             ->assertSee('Ibu Rina')
             ->assertSee('Jakarta Barat')
             ->assertSee('PKP');
+    }
+
+    public function test_client_list_can_filter_by_assigned_employee_and_role(): void
+    {
+        $user = User::factory()->create(['role' => 'employee']);
+        $user->assignRole('employee');
+        $this->actingAs($user);
+
+        $taxStaff = \App\Models\Staff::create(['name' => 'Nadia Tax', 'type' => 'tax', 'is_active' => true]);
+        $taxClient = Client::create(['name' => 'PT Pajak', 'status' => 'active', 'tax_pic' => $taxStaff->name]);
+        Client::create(['name' => 'PT Akuntansi', 'status' => 'active', 'accounting_pic' => 'Ari Accounting']);
+
+        $this->get(route('clients.index', ['employee' => 'staff:'.$taxStaff->id, 'role' => 'tax']))
+            ->assertOk()
+            ->assertSee($taxClient->name)
+            ->assertDontSee('PT Akuntansi');
+    }
+
+    public function test_client_pph_scheme_is_saved_and_rendered_on_related_project(): void
+    {
+        $user = User::factory()->create(['role' => 'boss']);
+        $user->assignRole('boss');
+        $this->actingAs($user);
+
+        $client = Client::create([
+            'name' => 'PT Jaskon',
+            'status' => 'active',
+            'pph_scheme' => 'PPh Final Jaskon',
+        ]);
+        $project = \App\Models\Project::factory()->create(['client_id' => $client->id]);
+
+        $this->assertDatabaseHas('clients', ['id' => $client->id, 'pph_scheme' => 'PPh Final Jaskon']);
+        $this->get(route('projects.show', $project))
+            ->assertOk()
+            ->assertSee('Skema PPh')
+            ->assertSee('PPh Final Jaskon');
     }
 
     public function test_user_can_create_client_with_all_fields_and_monthly_matrix(): void
@@ -189,6 +225,31 @@ class ClientManagementTest extends TestCase
             ->assertSee('Pending / Notes')
             ->assertSee('Mar 26')
             ->assertSee('Semua laporan beres.');
+    }
+
+    public function test_user_can_update_one_compliance_status_inline(): void
+    {
+        $user = User::factory()->create(['role' => 'employee']);
+        $user->assignRole('employee');
+        $this->actingAs($user);
+
+        $client = Client::create([
+            'name' => 'PT Status Inline',
+            'status' => 'active',
+        ]);
+
+        $this->patchJson(route('clients.compliances.update-status', $client), [
+            'period' => 'Mar 26',
+            'field' => 'pph_21',
+            'status' => 'Selesai',
+        ])->assertOk()
+            ->assertJsonPath('status', 'Selesai');
+
+        $this->assertDatabaseHas('client_compliances', [
+            'client_id' => $client->id,
+            'period' => 'Mar 26',
+            'pph_21' => 'Selesai',
+        ]);
     }
 
     public function test_employee_cannot_delete_client_but_boss_can(): void

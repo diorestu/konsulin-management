@@ -160,6 +160,15 @@
                         @endforeach
                     </select>
                 </div>
+                <div>
+                    <label for="pph_scheme" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Skema PPh Tahun Berjalan</label>
+                    <select id="pph_scheme" name="pph_scheme" class="w-full">
+                        <option value="">Belum ditentukan</option>
+                        @foreach(['PPh Tarif Umum', 'PPh Final Jaskon', 'PPh Final PP 55'] as $scheme)
+                            <option value="{{ $scheme }}" @selected(old('pph_scheme', $client->pph_scheme) === $scheme)>{{ $scheme }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
                 <div>
                     <label for="contract_status" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
